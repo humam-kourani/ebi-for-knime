@@ -203,17 +203,35 @@ jobs:
       - name: Regenerate exact matching nodes and test on Windows
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           python scripts/regenerate.py
+          if ($LASTEXITCODE -ne 0) { throw "Node generation failed (exit $LASTEXITCODE)" }
           python scripts/regenerate.py --check
+          if ($LASTEXITCODE -ne 0) { throw "Node generation check failed (exit $LASTEXITCODE)" }
           python scripts/run-tests.py
+          if ($LASTEXITCODE -ne 0) { throw "Regression tests failed (exit $LASTEXITCODE)" }
           python tests/run_native_tests.py --native --report test-results/windows-native.json
+          if ($LASTEXITCODE -ne 0) { throw "Windows JNI native tests failed (exit $LASTEXITCODE)" }
           python tests/run_command_tests.py
+          if ($LASTEXITCODE -ne 0) { throw "Windows JNI command tests failed (exit $LASTEXITCODE)" }
+
+          # Do not mark this job successful unless ALL required reports exist.
+          $required = @(
+            'test-results/windows-native.json',
+            'test-results/regression.json',
+            'tests/results/command-regression.json'
+          )
+          foreach ($report in $required) {
+            if (-not (Test-Path -LiteralPath $report -PathType Leaf)) {
+              throw "Required Windows test report was not written: $report"
+            }
+          }
       - name: Upload Windows JNI command report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ebi-windows-native-evidence
-          if-no-files-found: ignore
+          if-no-files-found: error
           path: |
             tests/results/command-regression.json
             test-results/windows-native.json
@@ -246,6 +264,14 @@ jobs:
           import json, hashlib
           from pathlib import Path
           root=Path('windows-evidence')
+          required = [
+              root/'test-results/windows-native.json',
+              root/'test-results/regression.json',
+              root/'tests/results/command-regression.json',
+          ]
+          missing = [str(p) for p in required if not p.is_file()]
+          if missing:
+              raise SystemExit('Missing required Windows verification evidence: ' + ', '.join(missing))
           native=json.loads((root/'test-results/windows-native.json').read_text())
           reg=json.loads((root/'test-results/regression.json').read_text())
           commands=json.loads((root/'tests/results/command-regression.json').read_text())
