@@ -1,11 +1,6 @@
 name: Ebi upstream sync, generate, test and release
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-  schedule:
-    - cron: '30 2 * * 1' # every Monday UTC; checks official Ebi JNI distributions
   workflow_dispatch:
     inputs:
       upstream:
