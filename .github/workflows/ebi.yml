@@ -1,6 +1,11 @@
 name: Ebi upstream sync, generate, test and release
 
 on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '30 2 * * 1' # every Monday UTC; checks official Ebi JNI distributions
   workflow_dispatch:
     inputs:
       upstream:
@@ -40,6 +45,27 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
+
+      # Tycho 4.0.13 has reported component-injection incompatibilities with
+      # newer Maven builds. Never rely on the changing Maven preinstalled on
+      # GitHub's ubuntu-24.04 image (which can move to Maven 3.10+).
+      - name: Install verified Apache Maven 3.9.9 for Tycho 4.0.13
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ebi-maven"
+          archive="$RUNNER_TEMP/ebi-maven/apache-maven-3.9.9-bin.tar.gz"
+          curl --fail --location --silent --show-error --retry 3 --retry-delay 3 \
+            'https://archive.apache.org/dist/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz' \
+            --output "$archive"
+          # Official Apache archive .sha512, pinned so an upstream replacement
+          # or interrupted download fails before build or release.
+          printf '%s  %s\n' \
+            'a555254d6b53d267965a3404ecb14e53c3827c09c3b94b5678835887ab404556bfaf78dcfe03ba76fa2508649dca8531c74bca4d5846513522404d48e8c4ac8b' \
+            "$archive" | sha512sum --check
+          tar -xzf "$archive" -C "$RUNNER_TEMP/ebi-maven"
+          echo "$RUNNER_TEMP/ebi-maven/apache-maven-3.9.9/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/ebi-maven/apache-maven-3.9.9/bin/mvn" --version
 
       - name: Detect Ebi update or restore exact locked binaries
         id: upstream
@@ -115,7 +141,12 @@ jobs:
       - name: All generated Ebi command smoke checks (known upstream defects reported separately)
         run: python tests/run_command_tests.py
       - name: Full KNIME + PM4KNIME Tycho build with Equinox integration tests
-        run: mvn -B -ntp clean verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          mvn --version
+          test "$(mvn --version | sed -n '1s/^Apache Maven //p' | cut -d' ' -f1)" = '3.9.9'
+          mvn -B -ntp clean verify
       - name: Compact factual release report
         run: python scripts/report.py --require-knime-tests
       - name: Verify and package Tycho's actual p2 update site

@@ -58,7 +58,7 @@
         <version>3.5.0</version>
         <executions><execution><id>build-tool-versions</id><goals><goal>enforce</goal></goals>
           <configuration><rules>
-            <requireMavenVersion><version>[3.9.9,4.0.0)</version></requireMavenVersion>
+            <requireMavenVersion><version>[3.9.9,3.9.10)</version></requireMavenVersion>
             <requireJavaVersion><version>[21,22)</version></requireJavaVersion>
           </rules></configuration>
         </execution></executions>
