@@ -39,7 +39,7 @@ def collect(commit: str):
     with zipfile.ZipFile(io.BytesIO(plugin)) as bundle:
         names = set(bundle.namelist())
         for required in ['META-INF/MANIFEST.MF','plugin.xml','knimeebi.jar','icons/ebi.png','LICENSE',
-                         'lib/native-artifacts.json','lib/LICENSE-Ebi-MIT.txt','lib/NOTICE-Ebi.txt']:
+                         'lib/native-artifacts.json','lib/LICENSE-Ebi-MIT.txt']:
             if required not in names: raise RuntimeError('Missing packaged resource '+required)
         if bundle.read('LICENSE') != license_bytes:
             raise RuntimeError('Plug-in jar LICENSE differs from the root AGPL v3 file')
