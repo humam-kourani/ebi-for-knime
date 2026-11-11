@@ -35,6 +35,12 @@ def collect(commit: str):
             raise RuntimeError('Feature jar missing matching AGPL LICENSE; check feature/build.properties')
         if 'feature.xml' not in packaged_feature.namelist() or b'GNU AFFERO GENERAL PUBLIC LICENSE' not in packaged_feature.read('feature.xml'):
             raise RuntimeError('Feature installer metadata is missing AGPL license text')
+        import xml.etree.ElementTree as ET
+        installer = ET.fromstring(packaged_feature.read('feature.xml'))
+        required = installer.findall("./requires/import")
+        if not any(item.get('feature') == 'org.pm4knime.feature' and item.get('match') == 'greaterOrEqual'
+                   for item in required):
+            raise RuntimeError('Packaged Ebi feature does not require the PM4KNIME installable feature')
     lock = json.loads((ROOT/'native-artifacts.json').read_text())
     with zipfile.ZipFile(io.BytesIO(plugin)) as bundle:
         names = set(bundle.namelist())
@@ -65,7 +71,8 @@ def collect(commit: str):
 
 1. Install PM4KNIME in KNIME Analytics Platform 5.12.
 2. Help > Install New Software > Add > Archive > knime-ebi-update-site.zip.
-3. Select Ebi Process Mining for KNIME, install, and restart KNIME.
+3. Select Ebi Process Mining for KNIME; accept the Process Mining Extension prerequisite.
+4. Restart KNIME. 
 
 This installer includes the Ebi Windows/Linux x86-64 native JNI libraries.
 Other native platforms are not supported. Read native-artifacts.json for exact

@@ -17,6 +17,7 @@
     </location>
     <location includeAllPlatforms="false" includeConfigurePhase="false" includeMode="planner" includeSource="true" type="InstallableUnit">
       <repository location="https://update.knime.com/community-contributions/trusted/5.12"/>
+      <unit id="org.pm4knime.feature.feature.group" version="0.0.0"/>
       <unit id="org.pm4knime.java" version="3.0.0.202610271214"/>
     </location>
   </locations>
