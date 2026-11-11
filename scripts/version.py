@@ -30,7 +30,11 @@ def change(old: str, new: str):
         needle = old+'-SNAPSHOT'
         if needle not in text: raise ValueError('Version missing from '+rel)
         path.write_text(text.replace(needle, new+'-SNAPSHOT'))
-    for rel in ['extension/META-INF/MANIFEST.MF', 'feature/feature.xml']:
+    for rel in [
+        'extension/META-INF/MANIFEST.MF',
+        'integration-tests/META-INF/MANIFEST.MF',
+        'feature/feature.xml',
+    ]:
         path = ROOT / rel
         text = path.read_text()
         needle = old+'.qualifier'

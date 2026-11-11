@@ -304,7 +304,8 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- pom.xml extension/pom.xml integration-tests/pom.xml feature/pom.xml \
-            update-site/pom.xml extension/META-INF/MANIFEST.MF feature/feature.xml \
+            update-site/pom.xml extension/META-INF/MANIFEST.MF \
+            integration-tests/META-INF/MANIFEST.MF feature/feature.xml \
             metadata/ native-artifacts.json
           if ! git diff --cached --quiet; then
             git commit -m "chore: validated Ebi update for ${RELEASE_TAG}"
