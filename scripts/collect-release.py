@@ -26,12 +26,23 @@ def collect(commit: str):
         if len(plugins)!=1 or len(features)!=1:
             raise RuntimeError('Expected exactly one compatible Ebi plug-in and feature')
         plugin = archive.read(plugins[0])
+        feature = archive.read(features[0])
+    license_bytes = (ROOT/'LICENSE').read_bytes()
+    if b'GNU AFFERO GENERAL PUBLIC LICENSE' not in license_bytes[:512]:
+        raise RuntimeError('The root LICENSE must contain the supplied AGPL v3 text')
+    with zipfile.ZipFile(io.BytesIO(feature)) as packaged_feature:
+        if 'LICENSE' not in packaged_feature.namelist() or packaged_feature.read('LICENSE') != license_bytes:
+            raise RuntimeError('Feature jar missing matching AGPL LICENSE; check feature/build.properties')
+        if 'feature.xml' not in packaged_feature.namelist() or b'GNU AFFERO GENERAL PUBLIC LICENSE' not in packaged_feature.read('feature.xml'):
+            raise RuntimeError('Feature installer metadata is missing AGPL license text')
     lock = json.loads((ROOT/'native-artifacts.json').read_text())
     with zipfile.ZipFile(io.BytesIO(plugin)) as bundle:
         names = set(bundle.namelist())
-        for required in ['META-INF/MANIFEST.MF','plugin.xml','knimeebi.jar','icons/ebi.png',
+        for required in ['META-INF/MANIFEST.MF','plugin.xml','knimeebi.jar','icons/ebi.png','LICENSE',
                          'lib/native-artifacts.json','lib/LICENSE-Ebi-MIT.txt','lib/NOTICE-Ebi.txt']:
             if required not in names: raise RuntimeError('Missing packaged resource '+required)
+        if bundle.read('LICENSE') != license_bytes:
+            raise RuntimeError('Plug-in jar LICENSE differs from the root AGPL v3 file')
         if json.loads(bundle.read('lib/native-artifacts.json')) != lock:
             raise RuntimeError('Packaged native provenance differs from tracked lock')
         for entry in lock['artifacts']:
@@ -47,6 +58,7 @@ def collect(commit: str):
     dist = ROOT/'dist'
     dist.mkdir(exist_ok=True)
     shutil.copy2(site,dist/site.name)
+    shutil.copy2(ROOT/'LICENSE',dist/'LICENSE')
     (dist/Path(plugins[0]).name).write_bytes(plugin)
     shutil.copy2(ROOT/'native-artifacts.json',dist/'native-artifacts.json')
     (dist/'INSTALL.txt').write_text('''Ebi for KNIME (KNIME 5.12 / PM4KNIME 3.0)
@@ -59,9 +71,6 @@ This installer includes the Ebi Windows/Linux x86-64 native JNI libraries.
 Other native platforms are not supported. Read native-artifacts.json for exact
 upstream binary provenance. Do not install the plug-in JAR by itself.
 
-Saved 1.1.0 workflows need the one-time migration script in the source tree:
-python scripts/migrate-workflow-1.1.1.py old.knwf --output migrated.knwf
-Retain your original file and import the migrated copy.
 ''',encoding='utf-8')
     (dist/'build-provenance.json').write_text(json.dumps({'commit_before_release':commit,
         'native_version':lock.get('version'),'knime':'5.12.0','java':'21',
