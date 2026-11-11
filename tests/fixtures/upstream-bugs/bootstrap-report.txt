@@ -1,0 +1,5 @@
+p-value 	 0
+Null-hypothesis: the logs follow identical processes.
+The data does not provide enough evidence to make a claim on this hypothesis.
+Do not reject the null-hypothesis.
+

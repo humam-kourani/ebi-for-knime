@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent><groupId>org.ebi.knime.integration</groupId><artifactId>knime-ebi-parent</artifactId><version>1.1.1-SNAPSHOT</version></parent>
+  <artifactId>org.ryoo.knimeEbi.repository</artifactId>
+  <packaging>eclipse-repository</packaging>
+  <name>Ebi for KNIME update site</name>
+  <build>
+    <finalName>knime-ebi-update-site</finalName>
+    <plugins><plugin>
+      <groupId>org.eclipse.tycho</groupId><artifactId>tycho-p2-repository-plugin</artifactId>
+      <configuration>
+        <includeAllDependencies>false</includeAllDependencies>
+        <compress>true</compress>
+        <repositoryName>Ebi Process Mining for KNIME</repositoryName>
+      </configuration>
+      <executions><execution><id>validate-p2-repository</id><phase>verify</phase>
+        <goals><goal>verify-repository</goal></goals>
+      </execution></executions>
+    </plugin></plugins>
+  </build>
+</project>

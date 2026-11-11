@@ -1,0 +1,62 @@
+<?xml version='1.0' encoding='utf-8'?>
+<log xes.version="1.0" xes.features="nested-attributes" openxes.version="1.0RC7">
+  <extension name="Concept" prefix="concept" uri="http://www.xes-standard.org/concept.xesext" />
+  <extension name="Time" prefix="time" uri="http://www.xes-standard.org/time.xesext" />
+  <classifier name="Activity" keys="concept:name" />
+  <trace>
+    <string key="concept:name" value="1" />
+    <string key="segment" value="standard" />
+    <int key="amount" value="10" />
+    <date key="submitted" value="2026-01-01T08:00:00.000+00:00" />
+    <event>
+      <string key="concept:name" value="A" />
+      <date key="time:timestamp" value="2026-01-01T09:00:00.000+00:00" />
+    </event>
+    <event>
+      <string key="concept:name" value="B" />
+      <date key="time:timestamp" value="2026-01-01T10:00:00.000+00:00" />
+    </event>
+  </trace>
+  <trace>
+    <string key="concept:name" value="2" />
+    <string key="segment" value="standard" />
+    <int key="amount" value="20" />
+    <date key="submitted" value="2026-01-02T08:00:00.000+00:00" />
+    <event>
+      <string key="concept:name" value="A" />
+      <date key="time:timestamp" value="2026-01-02T09:00:00.000+00:00" />
+    </event>
+    <event>
+      <string key="concept:name" value="B" />
+      <date key="time:timestamp" value="2026-01-02T10:00:00.000+00:00" />
+    </event>
+  </trace>
+  <trace>
+    <string key="concept:name" value="3" />
+    <string key="segment" value="standard" />
+    <int key="amount" value="30" />
+    <date key="submitted" value="2026-01-03T08:00:00.000+00:00" />
+    <event>
+      <string key="concept:name" value="A" />
+      <date key="time:timestamp" value="2026-01-03T09:00:00.000+00:00" />
+    </event>
+    <event>
+      <string key="concept:name" value="B" />
+      <date key="time:timestamp" value="2026-01-03T10:00:00.000+00:00" />
+    </event>
+  </trace>
+  <trace>
+    <string key="concept:name" value="4" />
+    <string key="segment" value="premium" />
+    <int key="amount" value="40" />
+    <date key="submitted" value="2026-01-04T08:00:00.000+00:00" />
+    <event>
+      <string key="concept:name" value="A" />
+      <date key="time:timestamp" value="2026-01-04T09:00:00.000+00:00" />
+    </event>
+    <event>
+      <string key="concept:name" value="B" />
+      <date key="time:timestamp" value="2026-01-04T10:00:00.000+00:00" />
+    </event>
+  </trace>
+</log>

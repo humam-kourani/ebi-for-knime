@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feature id="org.ryoo.knimeEbi.feature" label="Ebi Process Mining for KNIME"
+    version="1.1.1.qualifier" provider-name="Ebi for KNIME contributors">
+  <description>Metadata-generated process mining nodes that connect Ebi with KNIME and PM4KNIME.</description>
+  <requires>
+    <import plugin="org.knime.core" version="5.12.0" match="compatible"/>
+    <import plugin="org.knime.core.ui" version="6.0.0" match="compatible"/>
+    <import plugin="org.pm4knime.java" version="3.0.0.202610271214" match="greaterOrEqual"/>
+  </requires>
+  <plugin id="org.ryoo.knimeEbi" download-size="0" install-size="0" version="0.0.0" unpack="false"/>
+</feature>

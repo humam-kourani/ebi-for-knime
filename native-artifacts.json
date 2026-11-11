@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "retrieved_utc": "2026-11-10",
+  "version": "0.3.14-alpha.1",
+  "pin_type": "Artifact SHA-256; upstream mutable nightly URLs. Matching embedded version is not proof of a shared source commit.",
+  "source_commit": null,
+  "original_supplied_windows_sha256": "812e23fb6142bd559ee340dbdf0de21284048bb5329ff89fcf572afc2e1c1cf9",
+  "artifacts": [
+    {
+      "platform": "linux-x86_64",
+      "path": "extension/lib/linux-x86_64/libebi.so",
+      "sha256": "e87a2a7a74f9599787d3aa3e52257cb0aa34a5c15ce910c2f0bac1865c63a846",
+      "size": 19498184,
+      "embedded_version": "0.3.14-alpha.1",
+      "url": "https://git.rwth-aachen.de/rwth-bpm/rustlibrary/-/raw/main/build/nightly/java/libebi.so?ref_type=heads&inline=false",
+      "source": "Upstream prebuilt Java JNI artifact, downloaded unchanged",
+      "runtime_verified": true,
+      "observed_glibc_minimum": "2.35",
+      "dynamic_dependencies": [
+        "libgcc_s.so.1",
+        "libm.so.6",
+        "libc.so.6",
+        "ld-linux-x86-64.so.2"
+      ]
+    },
+    {
+      "platform": "windows-x86_64",
+      "path": "extension/lib/windows-x86_64/ebi.dll",
+      "sha256": "af5bbe281aa7d9a486308b93d288aff3b7d9d9555cff5bf348a0ef37126d17f8",
+      "size": 32624640,
+      "embedded_version": "0.3.14-alpha.1",
+      "url": "https://git.rwth-aachen.de/rwth-bpm/rustlibrary/-/raw/main/build/nightly/java/ebi.dll?ref_type=heads&inline=false",
+      "source": "Upstream prebuilt Java JNI artifact, downloaded unchanged",
+      "runtime_verified": false,
+      "dynamic_dependencies": [
+        "api-ms-win-core-synch-l1-2-0.dll",
+        "kernel32.dll",
+        "bcryptprimitives.dll",
+        "kernel32.dll",
+        "api-ms-win-core-synch-l1-2-0.dll",
+        "kernel32.dll",
+        "ADVAPI32.dll",
+        "bcrypt.dll",
+        "KERNEL32.dll",
+        "msvcrt.dll",
+        "ntdll.dll",
+        "USERENV.dll",
+        "WS2_32.dll"
+      ]
+    }
+  ],
+  "rejected_assets": [
+    {
+      "url": "https://github.com/BPM-Research-Group/Ebi/releases/download/v0.3.14-c/libebi.so",
+      "sha256": "7a4d4860dc38550c48396280f8fc1b3fc7b82a2da9a28f136aad0c5431bcc1d0",
+      "reason": "ELF PIE executable, not a loadable shared object. System.load rejects it. Not shipped."
+    }
+  ]
+}

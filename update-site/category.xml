@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site>
+  <feature id="org.ryoo.knimeEbi.feature" version="0.0.0">
+    <category name="ebi"/>
+  </feature>
+  <category-def name="ebi" label="Ebi Process Mining">
+    <description>Metadata-generated Ebi nodes for KNIME Analytics Platform.</description>
+  </category-def>
+</site>

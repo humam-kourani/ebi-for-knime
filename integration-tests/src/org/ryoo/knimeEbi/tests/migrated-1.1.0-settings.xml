@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<config xmlns="http://www.knime.org/2008/09/XMLConfig" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.knime.org/2008/09/XMLConfig http://www.knime.org/XMLConfig_2008_09.xsd" key="settings">
+    <entry key="factory" type="xstring" value="org.ryoo.knimeEbi.node.EbiConvertLabelledPetriNetNodeFactory" />
+    <config key="node_creation_config">
+        <config key="Input: Process model">
+            <config key="port_0">
+                <entry key="object_class" type="xstring" value="org.pm4knime.portobject.ProcessTreePortObject" />
+            </config>
+        </config>
+        <config key="Output: Petri net">
+            <config key="port_0">
+                <entry key="object_class" type="xstring" value="org.ryoo.knimeEbi.port.EbiDocumentPortObject" />
+            </config>
+        </config>
+    </config>
+</config>

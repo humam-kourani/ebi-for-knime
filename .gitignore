@@ -1,0 +1,55 @@
+# Source-only repository. Generated sources and p2 output are rebuilt by the single workflow.
+# Keep metadata snapshots + provenance lock checked in for review/reproducibility.
+
+# Native Ebi JNI binaries: fetched from upstream or immutable GitHub Releases
+*.so
+*.dll
+*.dylib
+*.exe
+/extension/lib/native-artifacts.json
+
+# Generated node factories, node settings, KNIME registration and full catalog
+/extension/plugin.xml
+/extension/src/org/ryoo/knimeEbi/node/Ebi*NodeFactory.java
+/extension/src/org/ryoo/knimeEbi/node/Ebi*NodeSettings.java
+/extension/src/org/ryoo/knimeEbi/scaffolder/commands.xml
+
+# Maven / Tycho / Eclipse / Java
+**/target/
+**/bin/
+**/.settings/
+**/.classpath
+**/.project
+**/.tycho-consumer-pom.xml
+**/knimeebi.jar
+*.class
+*.jar
+.mvn/timing.properties
+.metadata/
+
+# CI downloads, temporary reports and generated releases
+/dist/
+/.ci/
+/test-results/
+/tests/results/
+/release.patch
+/ebi-generation-*/
+/ebi-core-tests-*/
+/knime-ebi-test-*/
+/ebi-port-tests-*/
+*.knwf
+*.zip
+*.tar.gz
+
+# Editor, OS and Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*~

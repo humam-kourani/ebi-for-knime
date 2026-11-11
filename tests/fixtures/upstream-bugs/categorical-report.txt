@@ -1,0 +1,5 @@
+p-value 	 1/10
+Null-hypothesis: the sub-logs defined by trace attribute `at1` all follow identical processes.
+The data does not provide enough evidence to make a claim on this hypothesis.
+Do not reject the null-hypothesis.
+

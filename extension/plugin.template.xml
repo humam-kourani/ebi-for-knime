@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?eclipse version="3.0"?><plugin>
+  <extension point="org.knime.workbench.repository.categories">
+    <category description="Ebi process mining with configurable ports" icon="icons/ebi.png" level-id="ebi" name="Ebi" path="/community/processmining"/>
+  </extension>
+  <extension point="org.knime.core.PortType">
+    <portType color="#6C45A5" hidden="false" name="Ebi document" objectClass="org.ryoo.knimeEbi.port.EbiDocumentPortObject" objectSerializer="org.ryoo.knimeEbi.port.EbiDocumentPortObject$Serializer" specClass="org.ryoo.knimeEbi.port.EbiDocumentPortObjectSpec" specSerializer="org.ryoo.knimeEbi.port.EbiDocumentPortObjectSpec$Serializer"/>
+  </extension>
+  <extension point="org.knime.workbench.repository.nodes">
+  </extension>
+</plugin>

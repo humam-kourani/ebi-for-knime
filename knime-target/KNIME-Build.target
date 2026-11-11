@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?pde version="3.8"?>
+<target name="KNIME 5.12.0 - pinned compile and test target" sequenceNumber="1">
+  <locations>
+    <location includeAllPlatforms="false" includeConfigurePhase="false" includeMode="planner" includeSource="true" type="InstallableUnit">
+      <repository location="https://update.knime.com/analytics-platform/5.12/5.12.0"/>
+      <unit id="org.knime.core" version="5.12.0.v202606180846"/>
+      <unit id="org.knime.core.ui" version="6.0.0.v202606231643"/>
+      <unit id="org.knime.base" version="5.12.0.v202606261225"/>
+      <unit id="org.knime.workbench.core" version="5.12.0.v202604300913"/>
+      <unit id="org.knime.workbench.repository" version="5.12.0.v202604300913"/>
+      <unit id="org.eclipse.equinox.launcher" version="1.7.0.v20250519-0528"/>
+      <unit id="org.eclipse.equinox.app" version="1.7.400.v20250515-0510"/>
+      <unit id="org.junit" version="4.13.2.v20240929-1000"/>
+      <unit id="org.knime.gateway.api" version="5.12.0.v202606171435"/>
+      <unit id="org.knime.gateway.json" version="5.12.0.v202606010651"/>
+    </location>
+    <location includeAllPlatforms="false" includeConfigurePhase="false" includeMode="planner" includeSource="true" type="InstallableUnit">
+      <repository location="https://update.knime.com/community-contributions/trusted/5.12"/>
+      <unit id="org.pm4knime.java" version="3.0.0.202610271214"/>
+    </location>
+  </locations>
+  <targetJRE path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-21"/>
+</target>

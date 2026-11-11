@@ -1,0 +1,279 @@
+name: Ebi upstream sync, generate, test and release
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream:
+        description: 'Check latest Ebi or rebuild currently locked binaries?'
+        type: choice
+        options: [latest, pinned]
+        default: latest
+      publish:
+        description: 'Publish a new version (even if the upstream files are unchanged)?'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('ebi-pr-{0}', github.event.pull_request.number) || 'ebi-main-release' }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    outputs:
+      publish: ${{ steps.decide.outputs.publish }}
+      tag: ${{ steps.decide.outputs.tag }}
+      upstream_changed: ${{ steps.upstream.outputs.changed }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.12'
+
+      - name: Detect Ebi update or restore exact locked binaries
+        id: upstream
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REQUESTED_UPSTREAM: ${{ inputs.upstream }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT" == 'schedule' || ( "$EVENT" == 'workflow_dispatch' && "$REQUESTED_UPSTREAM" != 'pinned' ) ]]; then
+            # Official GitLab nightly JNI artifacts are mutable. A changed pair
+            # is only a candidate until all Linux, Windows, and Tycho gates pass.
+            python scripts/upstream.py latest
+          else
+            # Prefer a prior GitHub release as an immutable binary source.
+            # This keeps large binaries out of Git and tolerates mutable upstream URLs.
+            seed="v$(python scripts/version.py current)"
+            mkdir -p .ci/seed
+            if gh release download "$seed" --pattern 'knime-ebi-update-site.zip' --dir .ci/seed 2>/dev/null; then
+              python scripts/upstream.py pinned --site .ci/seed/knime-ebi-update-site.zip
+            else
+              python scripts/upstream.py pinned
+            fi
+          fi
+          changed="$(python -c 'import json; print(str(json.load(open(".ci/upstream.json"))["changed"]).lower())')"
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+          if [[ "$changed" == true ]]; then
+            # Metadata is extracted from this exact new native library, never from
+            # an independently downloaded manual or mismatched backend version.
+            python scripts/regenerate.py --capture
+          fi
+
+      - name: Decide whether the validated installer should be released
+        id: decide
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          UPSTREAM_CHANGED: ${{ steps.upstream.outputs.changed }}
+          REQUESTED_PUBLISH: ${{ inputs.publish }}
+          REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          publish=false
+          if [[ "$REF" == 'refs/heads/main' ]]; then
+            if [[ "$EVENT" == 'schedule' && "$UPSTREAM_CHANGED" == 'true' ]]; then publish=true; fi
+            if [[ "$EVENT" == 'workflow_dispatch' && "$REQUESTED_PUBLISH" == 'true' ]]; then publish=true; fi
+          fi
+          tag=''
+          if [[ "$publish" == true ]]; then
+            tag="v$(python scripts/version.py prepare)"
+          fi
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Publish=$publish, tag=$tag"
+
+      - name: Regenerate 100% of generated Java code, port catalog and plug-in registration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/regenerate.py
+          python scripts/regenerate.py --check
+          python - <<'PY'
+          import xml.etree.ElementTree as E
+          root=E.parse('extension/src/org/ryoo/knimeEbi/scaffolder/commands.xml').getroot()
+          assert root.findall('command') and sum(len(c.findall('variant')) for c in root.findall('command')) > 0
+          PY
+
+      - name: Production Java/Python regression checks
+        run: python scripts/run-tests.py
+      - name: Native Linux JNI smoke and packaged-resource checks
+        run: python tests/run_native_tests.py --native
+      - name: All generated Ebi command smoke checks (known upstream defects reported separately)
+        run: python tests/run_command_tests.py
+      - name: Full KNIME + PM4KNIME Tycho build with Equinox integration tests
+        run: mvn -B -ntp clean verify
+      - name: Compact factual release report
+        run: python scripts/report.py --require-knime-tests
+      - name: Verify and package Tycho's actual p2 update site
+        env:
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: python scripts/collect-release.py --commit "$SOURCE_COMMIT"
+      - name: Publish build report in Actions run summary
+        shell: bash
+        run: cat dist/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Save ONLY versioned-source changes for gated release job
+        shell: bash
+        run: git diff --binary > release.patch
+      - name: Pass locked JNI binaries and metadata to Windows test runner
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: ebi-validated-candidate
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
+          include-hidden-files: true
+          path: |
+            native-artifacts.json
+            extension/lib/native-artifacts.json
+            extension/lib/linux-x86_64/libebi.so
+            extension/lib/windows-x86_64/ebi.dll
+            metadata/ebi-java.txt
+            metadata/ebi-manual.tex
+            metadata/port-group-migration-1.1.1.json
+            .ci/upstream.json
+      - name: Pass update site, report, and release patch to gated publishing job
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: ebi-build-result
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+          path: |
+            dist/*
+            release.patch
+
+  windows-native:
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: ebi-validated-candidate
+          path: .
+      - name: Regenerate exact matching nodes and test on Windows
+        shell: pwsh
+        run: |
+          python scripts/regenerate.py
+          python scripts/regenerate.py --check
+          python scripts/run-tests.py
+          python tests/run_native_tests.py --native --report test-results/windows-native.json
+          python tests/run_command_tests.py
+      - name: Upload Windows JNI command report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: ebi-windows-native-evidence
+          if-no-files-found: ignore
+          path: |
+            tests/results/command-regression.json
+            test-results/windows-native.json
+            test-results/regression.json
+
+  release:
+    needs: [build, windows-native]
+    # A scheduled run publishes only if Ebi changed; manual dispatch may force
+    # a new patch version. No PR, fork, or ordinary push can publish.
+    if: needs.build.outputs.publish == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: ebi-build-result
+          path: .
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: ebi-windows-native-evidence
+          path: windows-evidence
+      - name: Include validated Windows results in final release report/checksums
+        shell: bash
+        run: |
+          python - <<'PYWIN'
+          import json, hashlib
+          from pathlib import Path
+          root=Path('windows-evidence')
+          native=json.loads((root/'test-results/windows-native.json').read_text())
+          reg=json.loads((root/'test-results/regression.json').read_text())
+          commands=json.loads((root/'tests/results/command-regression.json').read_text())
+          statuses={s:sum(c['status']==s for c in commands['commands'])
+                    for s in {c['status'] for c in commands['commands']}}
+          if any(g.get('failed',0) for g in native.values()) or any(g.get('failed',0) for g in reg.values()) or statuses.get('failed',0):
+              raise ValueError('Windows checks failed; refusing release')
+          rows=['','## Windows verification',
+                f'- Native JNI + packed smoke checks: **{sum(g["passed"] for g in native.values())} passed**',
+                f'- Java/Python regressions: **{sum(g["passed"] for g in reg.values())} passed**',
+                f'- JNI commands: **{statuses.get("passed",0)} passed**, **{statuses.get("known_upstream_issue",0)} known upstream issues**, 0 failed','']
+          path=Path('dist/REPORT.md'); path.write_text(path.read_text()+'\n'.join(rows)+'\n')
+          info=Path('dist/REPORT.json'); data=json.loads(info.read_text())
+          data['windows']={'native_smoke_passed':sum(g['passed'] for g in native.values()),
+                           'regression_passed':sum(g['passed'] for g in reg.values()),
+                           'jni_statuses':statuses}
+          info.write_text(json.dumps(data,indent=2)+'\n')
+          dist=Path('dist')
+          sums=['%s  %s'%(hashlib.sha256(p.read_bytes()).hexdigest(),p.name)
+                for p in sorted(dist.iterdir()) if p.is_file() and p.name!='SHA256SUMS.txt']
+          (dist/'SHA256SUMS.txt').write_text('\n'.join(sums)+'\n')
+          PYWIN
+      - name: Commit vetted metadata/version changes and tag the exact release sources
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if [[ -s release.patch ]]; then git apply release.patch; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- pom.xml extension/pom.xml integration-tests/pom.xml feature/pom.xml \
+            update-site/pom.xml extension/META-INF/MANIFEST.MF feature/feature.xml \
+            metadata/ native-artifacts.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: validated Ebi update for ${RELEASE_TAG}"
+          fi
+          test -n "$RELEASE_TAG"
+          if git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"; then
+            echo "Refusing to overwrite existing release tag: $RELEASE_TAG" >&2; exit 1
+          fi
+          git tag "$RELEASE_TAG"
+          git push origin HEAD:main "refs/tags/$RELEASE_TAG"
+      - name: Publish the installable p2 site and concise test report
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" \
+            dist/knime-ebi-update-site.zip dist/org.ryoo.knimeEbi_*.jar \
+            dist/REPORT.md dist/REPORT.json dist/SHA256SUMS.txt \
+            dist/native-artifacts.json dist/INSTALL.txt dist/build-provenance.json \
+            --verify-tag --title "Ebi for KNIME ${RELEASE_TAG}" \
+            --notes-file dist/REPORT.md

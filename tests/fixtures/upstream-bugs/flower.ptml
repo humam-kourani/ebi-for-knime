@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<ptml>
+<processTree root="0">
+<xorLoop id="0"/>
+<xor id="0redo"/>
+<parentsNode sourceId="0" targetId="1"/>
+<parentsNode sourceId="0" targetId="2redo"/>
+<parentsNode sourceId="0" targetId="3redo"/>
+<automaticTask id="0exit" name="tau"/>
+<parentsNode sourceId="0" targetId="0exit"/>
+<automaticTask id="1" name="tau"/>
+<manualTask id="2" name="A"/>
+<manualTask id="3" name="B"/>
+</processTree>
+</ptml>
