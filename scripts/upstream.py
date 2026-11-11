@@ -42,11 +42,11 @@ def sha(data: bytes) -> str:
 
 
 def artifact_path(entry: dict) -> Path:
+    base = ROOT.resolve() / 'extension' / 'lib'
     result = (ROOT / entry['path']).resolve()
-    if not result.is_relative_to(ROOT / 'extension/lib'):
+    if not result.is_relative_to(base):
         fatal('Unsafe binary destination: ' + str(result))
     return result
-
 
 def version_of(data: bytes) -> str | None:
     # Best effort: version strings can be absent in the native library.
