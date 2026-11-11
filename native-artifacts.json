@@ -2,7 +2,7 @@
   "schema_version": 1,
   "retrieved_utc": "2026-11-10",
   "version": "0.3.14-alpha.1",
-  "pin_type": "Artifact SHA-256; upstream mutable nightly URLs. Matching embedded version is not proof of a shared source commit.",
+  "pin_type": "Original 1.1.1 JNI baseline, SHA-256 locked; original source is historical; future updates use GitHub Releases only",
   "source_commit": null,
   "original_supplied_windows_sha256": "812e23fb6142bd559ee340dbdf0de21284048bb5329ff89fcf572afc2e1c1cf9",
   "artifacts": [
@@ -12,8 +12,8 @@
       "sha256": "e87a2a7a74f9599787d3aa3e52257cb0aa34a5c15ce910c2f0bac1865c63a846",
       "size": 19498184,
       "embedded_version": "0.3.14-alpha.1",
-      "url": "https://git.rwth-aachen.de/rwth-bpm/rustlibrary/-/raw/main/build/nightly/java/libebi.so?ref_type=heads&inline=false",
-      "source": "Upstream prebuilt Java JNI artifact, downloaded unchanged",
+      "url": null,
+      "source": "Original validated 1.1.1 native baseline; restore from our own GitHub Release update site until a compatible Ebi GitHub Release exists",
       "runtime_verified": true,
       "observed_glibc_minimum": "2.35",
       "dynamic_dependencies": [
@@ -29,8 +29,8 @@
       "sha256": "af5bbe281aa7d9a486308b93d288aff3b7d9d9555cff5bf348a0ef37126d17f8",
       "size": 32624640,
       "embedded_version": "0.3.14-alpha.1",
-      "url": "https://git.rwth-aachen.de/rwth-bpm/rustlibrary/-/raw/main/build/nightly/java/ebi.dll?ref_type=heads&inline=false",
-      "source": "Upstream prebuilt Java JNI artifact, downloaded unchanged",
+      "url": null,
+      "source": "Original validated 1.1.1 native baseline; restore from our own GitHub Release update site until a compatible Ebi GitHub Release exists",
       "runtime_verified": false,
       "dynamic_dependencies": [
         "api-ms-win-core-synch-l1-2-0.dll",
@@ -55,5 +55,7 @@
       "sha256": "7a4d4860dc38550c48396280f8fc1b3fc7b82a2da9a28f136aad0c5431bcc1d0",
       "reason": "ELF PIE executable, not a loadable shared object. System.load rejects it. Not shipped."
     }
-  ]
+  ],
+  "upstream_releases_url": "https://github.com/BPM-Research-Group/Ebi/releases",
+  "source_release_tag": null
 }

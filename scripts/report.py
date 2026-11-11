@@ -50,6 +50,10 @@ def report(require_knime_tests: bool=False):
           '## Native downloads (SHA-256)','']
     for obj in upstream.get('artifacts',[]):
         rows.append(f'- {obj["platform"]}: `{obj["sha256"]}` ({obj["bytes"]:,} bytes)')
+    if upstream.get("warnings"):
+        rows += ["", "## Ebi upstream release checks"]
+        rows += ["- " + str(note) for note in upstream["warnings"]]
+    rows += ["", "- Ebi binaries source: " + str(upstream.get("source", "unverified"))]
     rows+=['','The check counts are distinct: a native command marked `known_upstream_issue` is **not** counted as a semantic pass.',
           'This report does not claim end-to-end execution of all possible KNIME workflows.','']
     dest=ROOT/'dist/REPORT.md'

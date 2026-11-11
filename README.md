@@ -2,7 +2,7 @@
 
 **Use Ebi's process mining algorithms directly in KNIME workflows.**
 
-[Ebi](https://leemans.ch/ebi/) is a process mining toolkit. This extension makes its supported commands available as KNIME nodes, so you can connect them to other KNIME and [PM4KNIME](https://github.com/pm4knime/pm4knime-core) nodes instead of running Ebi separately.
+[Ebi](https://github.com/BPM-Research-Group/Ebi) is a process mining toolkit. This extension makes its supported commands available as KNIME nodes, so you can connect them to other KNIME and [PM4KNIME](https://github.com/pm4knime/pm4knime) nodes instead of running Ebi separately.
 
 The nodes are **generated from Ebi's own command descriptions**. Each node provides suitable settings and input/output ports. Where a command supports different compatible types, you can choose the relevant port type in KNIME. The extension handles data conversion, calls Ebi, and returns the result to the workflow.
 
@@ -35,10 +35,10 @@ Check for changes --> Read Ebi command metadata
 
 ### Where updates come from
 
-The workflow checks the **prebuilt Ebi Java/JNI libraries** published in the [RWTH Aachen Ebi repository](https://git.rwth-aachen.de/rwth-bpm/rustlibrary/-/tree/main/build/nightly/java):
+The workflow checks the **prebuilt Ebi Java/JNI libraries** published in the [Ebi GitHub Releases](https://github.com/BPM-Research-Group/Ebi/releases):
 
-- **Linux:** `libebi.so`
-- **Windows:** `ebi.dll`
+- **Linux x86-64 JNI:** `libebi.so`
+- **Windows x86-64 JNI:** `ebi.dll`
 
 It compares the downloads with the recorded file hashes. When they change, it uses the new Ebi library to refresh the **command metadata and documentation**, then regenerates the KNIME node classes, settings, ports and registrations. The workflow checks that the two binaries are compatible and runs tests before allowing a release.
 
