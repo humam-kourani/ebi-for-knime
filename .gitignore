@@ -1,6 +1,3 @@
-# Source-only repository. Generated sources and p2 output are rebuilt by the single workflow.
-# Keep metadata snapshots + provenance lock checked in for review/reproducibility.
-
 # Native Ebi JNI binaries: fetched from upstream or immutable GitHub Releases
 *.so
 *.dll
@@ -17,7 +14,9 @@
 # Maven / Tycho / Eclipse / Java
 **/target/
 **/bin/
-**/.settings/
+**/.settings/*
+!/extension/.settings/org.eclipse.jdt.core.prefs
+!/integration-tests/.settings/org.eclipse.jdt.core.prefs
 **/.classpath
 **/.project
 **/.tycho-consumer-pom.xml
