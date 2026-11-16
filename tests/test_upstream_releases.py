@@ -1,4 +1,4 @@
-"""Offline regression tests for Ebi GitHub Releases and safe JNI fallback."""
+"""Offline regression tests for fail-fast Ebi releases and pinned-only fallback."""
 from __future__ import annotations
 
 import importlib.util
@@ -69,12 +69,10 @@ class GitHubUpstreamTests(unittest.TestCase):
         data = bytearray(library('linux-x86_64'))
         struct.pack_into('<I', data, 64, 3)  # PT_INTERP
         files = {'libebi.so': bytes(data), 'ebi.dll': library('windows-x86_64')}
-        found, prepared, version, notes = up.latest_compatible_release(
-            [release('v0.3.16')], '0.3.14', fetch=lambda asset, repo: files[asset['name']])
-        self.assertIsNone(found)
-        self.assertFalse(prepared)
-        self.assertIsNone(version)
-        self.assertIn('PT_INTERP', notes[0])
+        with self.assertRaisesRegex(RuntimeError, 'v0.3.16.*PT_INTERP'):
+            up.latest_compatible_release(
+                [release('v0.3.16')], '0.3.14',
+                fetch=lambda asset, repo: files[asset['name']])
 
     def test_skip_older_release(self):
         files = {'libebi.so': library('linux-x86_64', '0.3.12'),
@@ -83,14 +81,81 @@ class GitHubUpstreamTests(unittest.TestCase):
             [release('v0.3.12')], '0.3.14-alpha.1',
             fetch=lambda asset, repo: files[asset['name']])
         self.assertIsNone(found)
-        self.assertIn('older native', notes[0])
+        self.assertEqual(notes, [])
 
     def test_do_not_treat_cli_as_jni(self):
-        found, prepared, _, _ = up.latest_compatible_release(
-            [release('v0.3.16', ('Ebi-x86_64-linux', 'Ebi-x86_64-windows.exe'))],
-            '0.3.14', fetch=lambda a, r: self.fail('Should never download CLI'))
+        with self.assertRaisesRegex(RuntimeError, 'v0.3.16.*lacks required JNI assets'):
+            up.latest_compatible_release(
+                [release('v0.3.16', ('Ebi-x86_64-linux', 'Ebi-x86_64-windows.exe'))],
+                '0.3.14', fetch=lambda a, r: self.fail('Should never download CLI'))
+
+    def test_new_release_failure_does_not_try_older_valid_release(self):
+        files = {'libebi.so': library('linux-x86_64'),
+                 'ebi.dll': library('windows-x86_64')}
+        corrupted = bytearray(files['libebi.so'])
+        corrupted[1000:1000+len(up.JNI)] = b'X' * len(up.JNI)
+        downloads = []
+
+        def fetch(asset, repo):
+            downloads.append(asset['browser_download_url'])
+            return (bytes(corrupted) if '/v0.3.16/' in downloads[-1] and
+                    asset['name'] == 'libebi.so' else files[asset['name']])
+
+        with self.assertRaisesRegex(RuntimeError, 'v0.3.16.*missing JNI symbol'):
+            up.latest_compatible_release(
+                [release('v0.3.16'), release('v0.3.15')], '0.3.14', fetch=fetch)
+        self.assertEqual(len(downloads), 1)
+        self.assertTrue(all('/v0.3.16/' in url for url in downloads))
+
+    def test_same_numeric_version_with_different_suffix_is_checked(self):
+        with self.assertRaisesRegex(RuntimeError, 'v0.3.14p.*lacks required JNI assets'):
+            up.latest_compatible_release(
+                [release('v0.3.14p', ('cli.zip',))], '0.3.14-alpha.1',
+                fetch=lambda a, r: self.fail('Should not fetch missing JNI'))
+
+    def test_invalid_new_release_aborts_before_pinned_restore(self):
+        old_linux = library('linux-x86_64', '0.3.14-alpha.1')
+        old_windows = library('windows-x86_64', '0.3.14-alpha.1')
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            lock_file = root / 'native-artifacts.json'
+            lock_file.write_text(json.dumps(manifest(old_linux, old_windows)))
+            report = root / '.ci/upstream.json'
+            with mock.patch.multiple(up, ROOT=root, LOCK=lock_file,
+                                     EMBEDDED=root/'extension/lib/native-artifacts.json'), \
+                 mock.patch.object(up, 'api_releases',
+                                   return_value=[release('v0.3.16', ('cli-only.zip',))]), \
+                 mock.patch.object(up, 'pinned_binaries',
+                                   side_effect=AssertionError('Unexpected pinned fallback')):
+                with self.assertRaisesRegex(RuntimeError, 'v0.3.16.*lacks required JNI assets'):
+                    up.run('latest', None, report)
+            self.assertFalse(report.exists())
+            self.assertFalse((root / 'extension/lib/linux-x86_64/libebi.so').exists())
+
+    def test_current_pinned_tag_is_not_rechecked_as_new(self):
+        found, prepared, version, notes = up.latest_compatible_release(
+            [release('v0.3.16')], '0.3.16', current_tag='v0.3.16',
+            fetch=lambda a, r: self.fail('Same tag must use pinned hash check'))
         self.assertIsNone(found)
-        self.assertFalse(prepared)
+        self.assertEqual(prepared, [])
+        self.assertIsNone(version)
+        self.assertEqual(notes, [])
+
+    def test_no_upstream_releases_uses_pinned_baseline(self):
+        found, prepared, version, notes = up.latest_compatible_release(
+            [], '0.3.14-alpha.1', fetch=lambda a, r: self.fail('No releases'))
+        self.assertIsNone(found)
+        self.assertEqual(prepared, [])
+        self.assertIsNone(version)
+        self.assertEqual(notes, [])
+
+    def test_newer_tag_with_old_embedded_version_fails(self):
+        data = {'libebi.so': library('linux-x86_64', '0.3.14'),
+                'ebi.dll': library('windows-x86_64', '0.3.14')}
+        with self.assertRaisesRegex(RuntimeError, 'v0.3.16.*does not match release tag'):
+            up.latest_compatible_release(
+                [release('v0.3.16')], '0.3.14-alpha.1',
+                fetch=lambda asset, repo: data[asset['name']])
 
     def test_wrong_download_origin(self):
         with self.assertRaisesRegex(RuntimeError, 'non-GitHub'):
@@ -115,7 +180,7 @@ class GitHubUpstreamTests(unittest.TestCase):
             lock_file.write_text(json.dumps(lock))
             with mock.patch.multiple(up, ROOT=root, LOCK=lock_file,
                                      EMBEDDED=root/'extension/lib/native-artifacts.json'):
-                with mock.patch.object(up, 'api_releases', return_value=[release('v0.3.16', ('no-jni-assets.zip',))]):
+                with mock.patch.object(up, 'api_releases', return_value=[release('v0.3.12', ('no-jni-assets.zip',))]):
                     summary = up.run('latest', site_file, root/'.ci/upstream.json')
                 self.assertFalse(summary['changed'])
                 self.assertTrue(summary['warnings'])

@@ -2,8 +2,9 @@
 """Refresh native Ebi JNI from official GitHub releases, never RWTH nightlies.
 
 The known-working baseline is recovered from an earlier *own* GitHub release
-installer if upstream publishes no compatible JNI pair. Native binaries remain
-excluded from Git; upstream candidates must pass binary and version checks.
+installer only if no newer upstream release exists (or in explicit pinned mode).
+A newer release with missing or invalid JNI artifacts is a build failure.
+Native binaries remain excluded from Git; candidates must pass validation.
 """
 from __future__ import annotations
 
@@ -130,41 +131,60 @@ def download_asset(asset: dict, repo: str) -> bytes:
     return request_bytes(asset_url(asset, repo), MAX_SIZE)
 
 
-def latest_compatible_release(releases: list[dict], current: str, fetch=None):
-    """Find the newest *usable* release with both raw JNI assets; never downgrade.
+def latest_compatible_release(releases: list[dict], current: str, fetch=None,
+                              current_tag: str | None = None):
+    """Validate the newest upstream release, or return none if no update exists.
 
-    Generic CLI ELF/EXE assets are not interchangeable with shared JNI libraries.
-    Refusing bad releases is intentional, not a reason to replace working binaries.
+    An unusable NEW release is an error, never an invitation to use an older
+    release. GitHub's Releases API lists releases newest first.
     """
     if fetch is None:
         fetch = download_asset
-    warnings = []
-    for release in releases:
-        if release.get('draft'):
-            continue
-        tag = release.get('tag_name', '<untagged>')
-        assets = {a.get('name'): a for a in release.get('assets', [])
-                  if isinstance(a, dict)}
-        if not all(name in assets for name in ASSETS.values()):
-            continue
+    release = next((r for r in releases if not r.get('draft')), None)
+    if release is None:
+        return None, [], None, []
+
+    tag = release.get('tag_name')
+    if not tag:
+        fatal('Newest upstream release has no tag; cannot determine update status')
+    if current_tag == tag:
+        # Already pinned to this release. pinned_binaries() checks exact hashes.
+        return None, [], None, []
+
+    before, advertised = version_triplet(current), version_triplet(tag)
+    if before is None or advertised is None:
+        fatal(f'Cannot compare upstream release {tag} to pinned native version {current}')
+    if advertised < before:
+        # Existing upstream releases are older than our pinned native version.
+        return None, [], None, []
+
+    # Equal numeric triplets still count as a candidate: Ebi uses suffixes such
+    # as v0.3.14-e and v0.3.14p that version_triplet() deliberately ignores.
+    assets = {a.get('name'): a for a in release.get('assets', [])
+              if isinstance(a, dict)}
+    missing = [name for name in ASSETS.values() if name not in assets]
+    if missing:
+        fatal(f'New upstream release {tag} lacks required JNI assets: '
+              + ', '.join(missing))
+
+    try:
         prepared = []
-        try:
-            for platform, name in ASSETS.items():
-                obj = assets[name]
-                data = fetch(obj, UPSTREAM)
-                validate(data, platform)
-                prepared.append((platform, data, asset_url(obj, UPSTREAM)))
-            versions = [version_of(data) for _, data, _ in prepared]
-            if not all(versions) or len(set(versions)) != 1:
-                fatal(f'Cannot prove matching Ebi versions for the two JNI assets: {versions}')
-            before, after = version_triplet(current), version_triplet(versions[0])
-            if before and after and after < before:
-                warnings.append(f'{tag}: skipping older native version {versions[0]} (locked {current})')
-                continue
-            return release, prepared, versions[0], warnings
-        except (RuntimeError, OSError, ValueError, KeyError, struct.error) as error:
-            warnings.append(f'{tag}: skipped unusable JNI pair: {error}')
-    return None, [], None, warnings
+        for platform, name in ASSETS.items():
+            obj = assets[name]
+            data = fetch(obj, UPSTREAM)
+            validate(data, platform)
+            prepared.append((platform, data, asset_url(obj, UPSTREAM)))
+        versions = [version_of(data) for _, data, _ in prepared]
+        if not all(versions) or len(set(versions)) != 1:
+            fatal(f'Cannot prove matching Ebi versions for the two JNI assets: {versions}')
+        embedded = version_triplet(versions[0])
+        if embedded is None or embedded < before:
+            fatal(f'Native version {versions[0]} is older than pinned {current}')
+        if embedded != advertised:
+            fatal(f'Native version {versions[0]} does not match release tag {tag}')
+    except (RuntimeError, OSError, ValueError, KeyError, struct.error) as error:
+        raise RuntimeError(f'New upstream release {tag} failed JNI validation: {error}') from error
+    return release, prepared, versions[0], []
 
 
 def from_site(path: Path, entry: dict) -> bytes:
@@ -264,7 +284,8 @@ def run(mode: str, site: Path | None, report: Path):
     release_tag = None
     if mode == 'latest':
         release, candidate, discovered_version, warnings = latest_compatible_release(
-            api_releases(UPSTREAM), str(manifest.get('version', '')))
+            api_releases(UPSTREAM), str(manifest.get('version', '')),
+            current_tag=manifest.get('source_release_tag'))
         if release is not None:
             release_tag = release['tag_name']
             paths = {platform: (data, url) for platform, data, url in candidate}
@@ -289,7 +310,7 @@ def run(mode: str, site: Path | None, report: Path):
                 manifest.pop('rejected_assets', None)
                 manifest.pop('original_supplied_windows_sha256', None)
         else:
-            warnings.append('No compatible, validated Linux+Windows JNI pair in the GitHub Releases feed. Keeping the pinned native baseline.')
+            warnings.append('No newer Ebi GitHub release than the pinned native version; restoring the exact pinned baseline.')
             prepared, source = pinned_binaries(manifest, site)
     else:
         prepared, source = pinned_binaries(manifest, site)

@@ -40,7 +40,7 @@ The workflow checks the **prebuilt Ebi Java/JNI libraries** published in the [Eb
 - **Linux x86-64 JNI:** `libebi.so`
 - **Windows x86-64 JNI:** `ebi.dll`
 
-It compares the downloads with the recorded file hashes. When they change, it uses the new Ebi library to refresh the **command metadata and documentation**, then regenerates the KNIME node classes, settings, ports and registrations. The workflow checks that the two binaries are compatible and runs tests before allowing a release.
+It compares the downloads with the recorded file hashes. When they change, it uses the new Ebi library to refresh the **command metadata and documentation**, then regenerates the KNIME node classes, settings, ports and registrations. The workflow checks that the two binaries are compatible and runs tests before allowing a release. In `latest` mode, a newer upstream release with missing or invalid JNI files **fails the build**; the old pinned version is used automatically only when no newer upstream release exists. Use `pinned` explicitly to rebuild the locked version.
 
 **It does not build Ebi from Rust source**, upgrade KNIME or PM4KNIME, or automatically add new Java conversion code for previously unsupported types.
 
