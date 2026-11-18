@@ -26,11 +26,11 @@ final class NativePlatform {
         }
         if (os.startsWith("windows")) {
             return new NativePlatform("windows-x86_64", "ebi.dll",
-                    "af5bbe281aa7d9a486308b93d288aff3b7d9d9555cff5bf348a0ef37126d17f8");
+                    EbiNativeBuild.WINDOWS_SHA256);
         }
         if (os.equals("linux")) {
             return new NativePlatform("linux-x86_64", "libebi.so",
-                    "e87a2a7a74f9599787d3aa3e52257cb0aa34a5c15ce910c2f0bac1865c63a846");
+                    EbiNativeBuild.LINUX_SHA256);
         }
         throw unsupported(osName, architecture);
     }

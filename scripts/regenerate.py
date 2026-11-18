@@ -28,6 +28,7 @@ with tempfile.TemporaryDirectory(prefix='ebi-generation-', dir=r) as temp:
     classes = Path(temp) / 'classes'
     sources = sorted((s / 'org/ryoo/knimeEbi/scaffolder').glob('*.java'))
     sources += sorted((s / 'org/processmining/ebi').glob('*.java'))
+    sources += sorted((s / 'org/ebitools').glob('*.java'))
     sources += sorted((s / 'org/ryoo/knimeEbi/entryPoint').glob('*.java'))
     subprocess.run(compiler + ['-d', str(classes)] + [str(f) for f in sources], check=True)
     import os

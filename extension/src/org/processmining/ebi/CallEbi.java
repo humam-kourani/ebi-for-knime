@@ -1,8 +1,8 @@
 package org.processmining.ebi;
 
 /**
- * Stable Ebi JNI entry point: the package, class and native method names are ABI.
- * Each call runs the unchanged upstream JNI binary in an isolated Java worker.
+ * Stable entry point for generated KNIME nodes. Only the isolated worker
+ * selects the upstream JNI ABI; nodes do not depend on a native symbol name.
  * Native panics and stdout remain outside KNIME; workers support cancellation.
  */
 public final class CallEbi {
@@ -38,6 +38,9 @@ public final class CallEbi {
         }
         return IsolatedEbiRunner.invoke(commandName, outputFormat, inputs.clone(), cancellation);
     }
+
+    /** Which JNI ABI is bundled with this release (no native load required). */
+    public static String jniApi() { return EbiNativeBuild.JNI_API; }
 
     /** Diagnostic with no native load or user data. */
     public static String runtimeDescription() {

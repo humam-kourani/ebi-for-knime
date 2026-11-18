@@ -65,7 +65,8 @@ final class NativeLibraryLoader {
     }
 
     static String description() {
-        return "Ebi JNI snapshot 0.3.14-alpha.1; " + System.getProperty("os.name") + "/"
+        return "Ebi JNI snapshot " + EbiNativeBuild.VERSION + " (" + EbiNativeBuild.JNI_API + "); "
+                + System.getProperty("os.name") + "/"
                 + System.getProperty("os.arch") + "; "
                 + (System.getProperty(OVERRIDE_PROPERTY) == null ? "bundled upstream binary"
                         : "explicit library override (check version separately)");

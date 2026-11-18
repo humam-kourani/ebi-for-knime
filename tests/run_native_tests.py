@@ -33,7 +33,9 @@ def main():
             if not javac:
                 parser.error("JDK 21 javac is required, or pass --ecj /path/to/ecj.jar")
             compiler = [javac, "--release", "21"]
+        extra = sorted((root / "extension/src/org/ebitools").glob("*.java"))
         subprocess.run(compiler + ["-d", str(classes)] + [str(p) for p in sorted(source.glob("*.java"))]
+                       + [str(p) for p in extra]
                        + [str(p) for p in sorted(tests.glob("*.java"))], check=True)
         command = ["java", "-Djava.io.tmpdir=" + str(Path(tmp).resolve()), "-cp", os.pathsep.join([str(classes), str(root / "extension")]),
                    "org.processmining.ebi.NativeBridgeRegressionTest"]

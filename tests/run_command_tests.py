@@ -282,6 +282,7 @@ class Probe:
         classes.mkdir()
         compiler = ["java", "-jar", str(ecj.resolve()), "-21"] if ecj else [shutil.which("javac") or "javac", "--release", "21"]
         sources = sorted((PLUGIN / "src/org/processmining/ebi").glob("*.java"))
+        sources += sorted((PLUGIN / "src/org/ebitools").glob("*.java"))
         sources += sorted((ROOT / "tests/commands").rglob("*.java"))
         subprocess.run(compiler + ["-d", str(classes)] + [str(p) for p in sources], check=True)
         self.command = ["java", "-Djava.io.tmpdir=" + str(directory),
@@ -310,6 +311,69 @@ class Probe:
         return result, round(time.monotonic() - started, 4)
 
 
+def jar_command_smokes(args, catalog, report, constant, rich):
+    """The JNI JAR exposes many more commands than the old ProM catalogue.
+
+    Compile/check every generated factory separately, and execute a small,
+    deterministic cross-section of the new ABI here. Do not feed arbitrary
+    fixtures to 96 heterogeneous native commands and call expected failures
+    successful tests.
+    """
+    available = {entry.get("name"): entry for entry in catalog}
+    report["scope"] = ("Representative real JNI commands through the production isolated "
+                       "worker; all generated nodes are validated by regeneration and Tycho")
+    cases = [
+        ("Ebi information", ".txt", [constant], lambda text: require(bool(text.strip()), "Empty object information")),
+        ("Ebi convert log", ".xes", [constant],
+         lambda text: require(bool(traces(text)), "Native event log conversion lost every trace")),
+        ("Ebi analyse completeness", ".frac", [constant],
+         lambda text: require(exact_fraction(text) == 1, "Exact completeness is not one for this fixture")),
+        ("Ebi discover-non-stochastic inductive-miner", ".ptml", [constant],
+         lambda text: require(not validate_ptml(text), "Native Petri-to-tree export contains dangling references")),
+        ("Ebi discover directly-follows-graph", ".dfg", [constant, "1"],
+         lambda text: require(bool(json.loads(text).get("activities")), "Empty DFG output")),
+        ("Ebi filter log traces length", ".xes", [rich, ">=", "2"],
+         lambda text: require(isinstance(traces(text), list), "Invalid filtered XES event log")),
+        ("Ebi itself manual", ".txt", [],
+         lambda text: require("\\def\\version{" in text and "\\section{" in text,
+                              "JNI manual is not a generated Ebi command contract")),
+    ]
+    with tempfile.TemporaryDirectory(prefix="ebi-jar-command-tests-", dir=ROOT) as folder:
+        probe = Probe(Path(folder).resolve(), args.ecj, args.timeout_ms)
+        for name, fmt, inputs, assertion in cases:
+            row = {"command": name, "format": fmt, "status": "failed", "checks": []}
+            try:
+                if not name.startswith("Ebi itself "):
+                    entry = available.get(name)
+                    require(entry is not None, "Upstream removed the tested command from the Java catalogue")
+                    formats = {v.get("format") for v in entry.findall("variant")}
+                    require(fmt in formats, "Native format is not supported by generated KNIME ports: " + str(formats))
+                result, elapsed = probe.call(name, fmt, inputs)
+                text = result.read_text(encoding="utf-8")
+                assertion(text)
+                row.update(status="passed", elapsed_seconds=elapsed,
+                           output_sha256=hashlib.sha256(text.encode()).hexdigest(),
+                           checks=["JNI produced the required native output and its payload validated"])
+            except Exception as error:
+                row["error"] = str(error)
+            report["commands"].append(row)
+    all_rows = report["commands"]
+    report["summary"] = {
+        "catalog_commands": len(catalog), "catalog_commands_executed": len(all_rows),
+        "command_statuses": dict(Counter(row["status"] for row in all_rows)),
+        "supplemental_statuses": {},
+        "failed": sum(row["status"] == "failed" for row in all_rows),
+    }
+    args.report.parent.mkdir(parents=True, exist_ok=True)
+    args.report.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(json.dumps(report["summary"], indent=2))
+    for row in all_rows:
+        if row["status"] == "failed":
+            print("FAIL", row["command"], row["error"])
+    if report["summary"]["failed"]:
+        raise SystemExit(1)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ecj", type=Path)
@@ -328,6 +392,9 @@ def main():
               "catalog_commands": len(catalog), "commands": [], "supplemental": []}
     constant, rich = FIXTURES / "constant.xes", FIXTURES / "tiny-attributed.xes"
     rich_traces = traces(rich.read_text(encoding="utf-8"))
+    if json.loads((ROOT / "native-artifacts.json").read_text(encoding="utf-8")).get("jni_api") == "ebitools":
+        jar_command_smokes(args, catalog, report, constant, rich)
+        return
     with tempfile.TemporaryDirectory(prefix="ebi-command-test-", dir=ROOT) as temporary:
         work = Path(temporary).resolve()
         probe = Probe(work, args.ecj, args.timeout_ms)

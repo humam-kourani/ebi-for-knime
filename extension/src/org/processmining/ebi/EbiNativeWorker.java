@@ -37,7 +37,12 @@ public final class EbiNativeWorker {
             }
             CallEbi.validateRequest(command, format, inputs);
             NativeLibraryLoader.ensureLoaded();
-            String result = CallEbi.validateResult(command, CallEbi.call_ebi_internal(command, format, inputs));
+            String nativeResult = switch (EbiNativeBuild.JNI_API) {
+                case "legacy" -> CallEbi.call_ebi_internal(command, format, inputs);
+                case "ebitools" -> org.ebitools.Ebi.callEbi(command, format, inputs);
+                default -> throw new LinkageError("Unsupported Ebi JNI ABI: " + EbiNativeBuild.JNI_API);
+            };
+            String result = CallEbi.validateResult(command, nativeResult);
             Files.writeString(directory.resolve("result.txt"), result, StandardCharsets.UTF_8);
         } catch (Exception | LinkageError error) {
             Files.writeString(directory.resolve("error.txt"), error.getClass().getSimpleName() + ": "

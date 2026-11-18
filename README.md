@@ -13,7 +13,7 @@ The working **1.1.1 baseline** generates **56 nodes** covering **439 supported i
 The single workflow, [`.github/workflows/ebi.yml`](.github/workflows/ebi.yml), keeps the extension aligned with Ebi and produces an installable KNIME extension.
 
 ```text
-Ebi native libraries
+Ebi GitHub Release (JAR or native pair)
        |
        v
 Check for changes --> Read Ebi command metadata
@@ -37,10 +37,10 @@ Check for changes --> Read Ebi command metadata
 
 The workflow checks the **prebuilt Ebi Java/JNI libraries** published in the [Ebi GitHub Releases](https://github.com/BPM-Research-Group/Ebi/releases):
 
-- **Linux x86-64 JNI:** `libebi.so`
-- **Windows x86-64 JNI:** `ebi.dll`
+- **New packaging:** `Ebi.jar` containing `libebi.so`, `ebi.dll`, and `src/surfaces/java/org/ebitools/Ebi.java`
+- **Older packaging (still supported):** separate `libebi.so` and `ebi.dll`
 
-It compares the downloads with the recorded file hashes. When they change, it uses the new Ebi library to refresh the **command metadata and documentation**, then regenerates the KNIME node classes, settings, ports and registrations. The workflow checks that the two binaries are compatible and runs tests before allowing a release. In `latest` mode, a newer upstream release with missing or invalid JNI files **fails the build**; the old pinned version is used automatically only when no newer upstream release exists. Use `pinned` explicitly to rebuild the locked version.
+It validates and compares the native binaries with the recorded hashes. When a new Ebi release changes, it **captures the new command metadata and documentation from that exact native version, then recreates all generated KNIME nodes, settings, ports, and registrations**. Stale generated nodes are removed. The upstream JAR is treated as a release *input*: its native binaries are extracted and bundled into the extension, but its uncompiled Java source and fragile class initializer are not shipped. A small audited Java JNI binding is compiled by this project instead. The workflow checks that the two binaries are compatible and runs tests before allowing a release. In `latest` mode, a newer upstream release with missing or invalid JNI files **fails the build**; the old pinned version is used automatically only when no newer upstream release exists. Use `pinned` explicitly to rebuild the locked version.
 
 **It does not build Ebi from Rust source**, upgrade KNIME or PM4KNIME, or automatically add new Java conversion code for previously unsupported types.
 

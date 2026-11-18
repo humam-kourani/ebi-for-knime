@@ -97,11 +97,16 @@ final class IsolatedEbiRunner {
         Path jar = Files.createTempFile("knime-ebi-worker-", ".jar");
         jar.toFile().deleteOnExit();
         // Bytecode resources also work from a nested Eclipse/PDE bundle JAR.
-        List<String> classes = List.of("CallEbi", "CallEbi$CancellationChecker", "NativePlatform",
-                "NativeLibraryLoader", "EbiNativeWorker", "IsolatedEbiRunner");
+        List<String> classes = List.of("org/processmining/ebi/CallEbi.class",
+                "org/processmining/ebi/CallEbi$CancellationChecker.class",
+                "org/processmining/ebi/NativePlatform.class",
+                "org/processmining/ebi/EbiNativeBuild.class",
+                "org/processmining/ebi/NativeLibraryLoader.class",
+                "org/processmining/ebi/EbiNativeWorker.class",
+                "org/processmining/ebi/IsolatedEbiRunner.class",
+                "org/ebitools/Ebi.class");
         try (JarOutputStream output = new JarOutputStream(Files.newOutputStream(jar))) {
-            for (String name : classes) {
-                String entry = "org/processmining/ebi/" + name + ".class";
+            for (String entry : classes) {
                 try (InputStream bytes = CallEbi.class.getResourceAsStream("/" + entry)) {
                     if (bytes == null) { throw new IOException("Missing worker bytecode resource: " + entry); }
                     output.putNextEntry(new JarEntry(entry));

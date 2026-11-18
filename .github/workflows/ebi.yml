@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       publish: ${{ steps.decide.outputs.publish }}
       tag: ${{ steps.decide.outputs.tag }}
@@ -43,7 +43,7 @@ jobs:
 
       # Tycho 4.0.13 has reported component-injection incompatibilities with
       # newer Maven builds. Never rely on the changing Maven preinstalled on
-      # GitHub's ubuntu-24.04 image (which can move to Maven 3.10+).
+      # GitHub's Ubuntu runner image (which can move to Maven 3.10+).
       - name: Install verified Apache Maven 3.9.9 for Tycho 4.0.13
         shell: bash
         run: |
@@ -72,8 +72,8 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "$EVENT" == 'schedule' || ( "$EVENT" == 'workflow_dispatch' && "$REQUESTED_UPSTREAM" != 'pinned' ) ]]; then
-            # Official GitLab nightly JNI artifacts are mutable. A changed pair
-            # is only a candidate until all Linux, Windows, and Tycho gates pass.
+            # Ebi GitHub Releases provide either Ebi.jar or a native JNI pair.
+            # A changed candidate is trusted only after all release gates pass.
             python scripts/upstream.py latest
           else
             # Prefer a prior GitHub release as an immutable binary source.
@@ -133,7 +133,7 @@ jobs:
         run: python scripts/run-tests.py
       - name: Native Linux JNI smoke and packaged-resource checks
         run: python tests/run_native_tests.py --native
-      - name: All generated Ebi command smoke checks (known upstream defects reported separately)
+      - name: JNI command smoke checks (known upstream defects reported separately)
         run: python tests/run_command_tests.py
       - name: Full KNIME + PM4KNIME Tycho build with Equinox integration tests
         shell: bash
@@ -165,6 +165,7 @@ jobs:
           path: |
             native-artifacts.json
             extension/lib/native-artifacts.json
+            extension/src/org/processmining/ebi/EbiNativeBuild.java
             extension/lib/linux-x86_64/libebi.so
             extension/lib/windows-x86_64/ebi.dll
             metadata/ebi-java.txt
@@ -242,7 +243,7 @@ jobs:
     # A scheduled run publishes only if Ebi changed; manual dispatch may force
     # a new patch version. No PR, fork, or ordinary push can publish.
     if: needs.build.outputs.publish == 'true' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
     steps:
@@ -306,7 +307,8 @@ jobs:
           git add -- pom.xml extension/pom.xml integration-tests/pom.xml feature/pom.xml \
             update-site/pom.xml extension/META-INF/MANIFEST.MF \
             integration-tests/META-INF/MANIFEST.MF feature/feature.xml \
-            metadata/ native-artifacts.json
+            metadata/ native-artifacts.json \
+            extension/src/org/processmining/ebi/EbiNativeBuild.java
           if ! git diff --cached --quiet; then
             git commit -m "chore: validated Ebi update for ${RELEASE_TAG}"
           fi

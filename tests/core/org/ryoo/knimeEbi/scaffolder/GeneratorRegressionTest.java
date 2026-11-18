@@ -41,6 +41,11 @@ public final class GeneratorRegressionTest {
         manual = Files.readString(repository.resolve("metadata/ebi-manual.tex"));
         List<EbiCommandMetadata> commands = EbiNodeGenerator.parseCommands(javaText, manual);
         catalog = EbiCatalog.read(EbiCatalog.write(commands));
+        if (javaText.contains("native String callEbi(")) {
+            runJarAssertions(commands);
+            System.out.println("CORE_TESTS_PASSED=" + passed);
+            return;
+        }
         test("all commands regenerate", () -> yes(!commands.isEmpty() && commands.size() == catalog.size()));
         test("stochastic net maps to lossless document", () -> equal("EbiDocumentPortObject", EbiCommandMetadata.inputPortType("StochasticLabelledPetriNetSimpleWeights")));
         test("unknown object does not become table", () -> rejects(() -> EbiCommandMetadata.inputPortType("UnknownModel")));
@@ -319,4 +324,125 @@ public final class GeneratorRegressionTest {
         });
         System.out.println("CORE_TESTS_PASSED=" + passed);
     }
+
+    /** JAR releases have no ProM @Plugin blocks. Validate the dynamic command
+     *  catalogue rather than asserting obsolete fixed command signatures. */
+    private static void runJarAssertions(final List<EbiCommandMetadata> commands) throws Exception {
+        test("each native Java method produces one KNIME node", () -> {
+            java.util.regex.Matcher methods = java.util.regex.Pattern.compile(
+                "(?:public\\s+)?static\\s+native\\s+String\\s+(\\w+)\\s*\\(").matcher(javaText);
+            int callable = 0;
+            while (methods.find()) if (!methods.group(1).equals("callEbi")) callable++;
+            yes(callable > 0);
+            equal(callable, commands.size());
+            equal(callable, catalog.size());
+        });
+        test("all generated commands have valid signatures and outputs", () -> {
+            var names = new java.util.HashSet<String>();
+            var classes = new java.util.HashSet<String>();
+            for (var command : commands) {
+                yes(command.commandName.startsWith("Ebi "));
+                yes(names.add(command.commandName));
+                yes(classes.add(EbiNodeGenerator.toClassNamePrefix(command.commandName)));
+                yes(command.variants.size() >= 1);
+                yes(command.output.isPort);
+                yes(!command.outputFormats.isEmpty());
+                for (var input : command.inputs) {
+                    if (input.isPort) {
+                        yes(!input.supportedPortTypes.isEmpty());
+                        if (input.supportedPortTypes.contains("EbiDocumentPortObject"))
+                            yes(!input.acceptedDocumentFormats.isEmpty());
+                    }
+                }
+            }
+        });
+        test("catalog persists every exact command signature", () ->
+            equal(EbiCatalog.write(commands), EbiCatalog.write(List.copyOf(catalog.values()))));
+        test("all generated factory sources are distinct and nonempty", () -> {
+            for (var m : commands) {
+                String prefix = EbiNodeGenerator.toClassNamePrefix(m.commandName);
+                String factory = EbiNodeFactorySourceGenerator.generate(m, prefix + "NodeFactory", prefix + "NodeSettings");
+                yes(factory.contains("class " + prefix + "NodeFactory"));
+                yes(factory.contains("EbiNodeRuntime.execute"));
+                if (!m.hasNoPrimitiveInputs()) {
+                    String settings = EbiNodeSettingsSourceGenerator.generate(m, prefix + "NodeSettings");
+                    yes(settings.contains("class " + prefix + "NodeSettings"));
+                }
+            }
+        });
+        test("JNI declaration without matching manual fails fast", () -> {
+            String broken = javaText + " public static native String impossibleNewEbiCommand(String output_format);";
+            rejects(() -> EbiNodeGenerator.parseCommands(broken, manual));
+        });
+        test("duplicate JNI method declarations fail fast", () -> {
+            java.util.regex.Matcher first = java.util.regex.Pattern.compile(
+                "(?:public\\s+)?static\\s+native\\s+String\\s+(?!callEbi\\b)\\w+\\s*\\([^)]*\\)\\s*;").matcher(javaText);
+            yes(first.find());
+            rejects(() -> EbiNodeGenerator.parseCommands(javaText + first.group(), manual));
+        });
+        test("invalid native manual fails fast", () ->
+            rejects(() -> EbiNodeGenerator.parseCommands(javaText, "not an Ebi command manual")));
+        test("all dynamic port group IDs are unique", () -> {
+            for (var m : commands) {
+                var seen = new java.util.HashSet<String>();
+                for (int index = 0; index < m.inputPortCount(); index++)
+                    yes(seen.add(EbiPortGroups.inputGroupId(m, index)));
+                yes(seen.add(EbiPortGroups.outputGroupId(m)));
+            }
+        });
+        test("versioned port-group migration map reflects generated nodes", () ->
+            equal(EbiNodeGenerator.portGroupMigrationJson(commands),
+                Files.readString(repository.resolve("metadata/port-group-migration-1.1.1.json"))));
+        test("all generated descriptions are well-formed XML", () -> {
+            for (var m : commands) {
+                descriptionText(EbiNodeText.shortDescription(m));
+                descriptionText(EbiNodeText.fullDescription(m));
+                descriptionText(EbiNodeText.outputDescription(m));
+                for (int index = 0; index < m.inputPortCount(); index++)
+                    descriptionText(EbiNodeText.inputDescription(m, index));
+            }
+        });
+        test("no obsolete factory survives regeneration", () -> {
+            Path dir = repository.resolve("extension/src/org/ryoo/knimeEbi/node");
+            var expected = new java.util.HashSet<String>();
+            for (var m : commands)
+                expected.add(EbiNodeGenerator.toClassNamePrefix(m.commandName) + "NodeFactory.java");
+            try (var files = Files.list(dir)) {
+                for (Path file : files.toList()) {
+                    String filename = file.getFileName().toString();
+                    if (filename.matches("Ebi.*NodeFactory\\.java")) yes(expected.contains(filename));
+                }
+            }
+        });
+        test("generated sources are reproducible and unchanged", () ->
+            equal(commands.size(), EbiNodeGenerator.generate(repository.resolve("extension"),
+                javaText, manual, true,
+                repository.resolve("metadata/port-group-migration-1.1.1.json"))));
+        test("modified generated factory is rejected without overwriting it", () -> {
+            Path dir = Files.createTempDirectory("ebi-jar-generator-test-");
+            try {
+                Files.writeString(dir.resolve("plugin.xml"), "<plugin/>");
+                EbiNodeGenerator.generate(dir, javaText, manual, false);
+                String name = EbiNodeGenerator.toClassNamePrefix(commands.get(0).commandName);
+                Path factory = dir.resolve("src/org/ryoo/knimeEbi/node/" + name + "NodeFactory.java");
+                Files.writeString(factory, "user modification");
+                rejects(() -> EbiNodeGenerator.generate(dir, javaText, manual, true));
+                equal("user modification", Files.readString(factory));
+            } finally {
+                try (var walk = Files.walk(dir)) {
+                    for (Path file : walk.sorted(java.util.Comparator.reverseOrder()).toList())
+                        Files.delete(file);
+                }
+            }
+        });
+        test("catalog rejects duplicate commands and external entities", () -> {
+            rejects(() -> EbiCatalog.read(EbiCatalog.write(List.of(commands.get(0), commands.get(0)))));
+            rejectsXml(() -> EbiCatalog.read("<!DOCTYPE ebi-commands [<!ENTITY x SYSTEM 'file:///etc/passwd'>]><ebi-commands schema=\"1\">&x;</ebi-commands>"));
+        });
+        test("native calling bridge rejects null arguments", () -> {
+            rejects(() -> org.processmining.ebi.CallEbi.call_ebi(null, ".txt", new String[0]));
+            rejects(() -> org.processmining.ebi.CallEbi.call_ebi("Ebi information", null, new String[0]));
+        });
+    }
+
 }

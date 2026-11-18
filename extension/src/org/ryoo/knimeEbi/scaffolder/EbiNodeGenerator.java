@@ -18,6 +18,9 @@ public final class EbiNodeGenerator {
     private EbiNodeGenerator() { }
     public static List<EbiCommandMetadata> parseCommands(final String javaMetadata, final String manualMetadata) {
         EbiManualMetadata manual = new EbiManualMetadata(manualMetadata);
+        if (!javaMetadata.contains("// == command ") && javaMetadata.contains("native String callEbi(")) {
+            return new EbiManualMetadata(manualMetadata).fromJavaModule(javaMetadata);
+        }
         List<EbiCommandMetadata> commands = new ArrayList<>();
         for (String block : javaMetadata.split("// == command ")) {
             if (!block.matches("(?s).*@Plugin\\s*\\(.*") || block.startsWith("Ebi itself ")) continue;
@@ -117,9 +120,23 @@ public final class EbiNodeGenerator {
     }
 
     public static void capture(final Path metadataDirectory) throws IOException {
+        // Always fetch both snapshots from the newly selected native library
+        // before replacing either committed metadata file. An incompatible
+        // upstream metadata format must fail before code generation or release.
+        // The new JAR embeds the authoritative generated Java declarations.
+        // scripts/upstream.py validates and extracts them from the very JAR
+        // containing the selected JNI binaries. Only the manual needs JNI.
+        String javaMetadata = CallEbi.jniApi().equals("ebitools")
+            ? Files.readString(metadataDirectory.resolve("ebi-java.txt"))
+            : CallEbi.call_ebi("Ebi itself java", ".txt", new String[0]);
+        String manualMetadata = CallEbi.call_ebi("Ebi itself manual", ".txt", new String[0]);
+        if (!javaMetadata.contains("// == command ") && !javaMetadata.contains("native String callEbi(")) {
+            throw new IllegalStateException("Ebi did not return a recognized Java command catalog.");
+        }
+        parseCommands(javaMetadata, manualMetadata);
         Files.createDirectories(metadataDirectory);
-        atomicWrite(metadataDirectory.resolve("ebi-java.txt"), CallEbi.call_ebi("Ebi itself java", ".txt", new String[0]));
-        atomicWrite(metadataDirectory.resolve("ebi-manual.tex"), CallEbi.call_ebi("Ebi itself manual", ".txt", new String[0]));
+        atomicWrite(metadataDirectory.resolve("ebi-java.txt"), javaMetadata);
+        atomicWrite(metadataDirectory.resolve("ebi-manual.tex"), manualMetadata);
     }
     public static void generateEbiNodes() {
         Path bundle = Files.exists(Path.of("plugin.xml")) ? Path.of(".") : Path.of("extension");

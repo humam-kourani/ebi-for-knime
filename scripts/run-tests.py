@@ -37,6 +37,7 @@ def main():
         classes = Path(temp) / 'classes'
         sources = sorted((src / 'org/ryoo/knimeEbi/scaffolder').glob('*.java'))
         sources += sorted((src / 'org/processmining/ebi').glob('*.java'))
+        sources += sorted((src / 'org/ebitools').glob('*.java'))
         sources += sorted((root / 'tests/core').rglob('*.java'))
         run(compiler + ['-d', str(classes)] + sources, cwd=root)
         result = run(['java', '-Djava.io.tmpdir=' + str(Path(temp).resolve()), '-cp', str(classes), 'org.ryoo.knimeEbi.scaffolder.GeneratorRegressionTest', root],

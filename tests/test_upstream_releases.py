@@ -17,7 +17,7 @@ up = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(up)
 
 
-def library(platform: str, version: str = '0.3.16') -> bytes:
+def library(platform: str, version: str = '0.3.16', api: str = 'legacy') -> bytes:
     buf = bytearray(2048)
     if platform == 'linux-x86_64':
         buf[:6] = b'\x7fELF\x02\x01'
@@ -31,7 +31,8 @@ def library(platform: str, version: str = '0.3.16') -> bytes:
         buf[128:132] = b'PE\x00\x00'
         struct.pack_into('<H', buf, 132, 0x8664)
         struct.pack_into('<H', buf, 150, 0x2000)
-    tail = up.JNI + b'  Ebi version: ' + version.encode() + b'\x00'
+    symbol = up.JNI_NEW if api == 'ebitools' else up.JNI
+    tail = symbol + b'  Ebi version: ' + version.encode() + b'\x00'
     buf[1000:1000+len(tail)] = tail
     return bytes(buf)
 
@@ -51,6 +52,21 @@ def manifest(linux: bytes, windows: bytes):
                  'size': len(data), 'sha256': up.sha(data), 'url': None}
                 for platform, name, data in [('linux-x86_64', 'libebi.so', linux),
                                               ('windows-x86_64', 'ebi.dll', windows)]]}
+
+
+def jar_fixture(version: str = '0.3.16', source: str | None = None,
+                files: tuple[str, ...] = ('libebi.so', 'ebi.dll')) -> bytes:
+    if source is None:
+        source = ('package org.ebitools; public class Ebi { '
+                  'public static native String callEbi(String command_name, '
+                  'String output_format, String[] inputs); }')
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr(up.JAR_SOURCE, source)
+        for platform, name in up.ASSETS.items():
+            if name in files:
+                archive.writestr(name, library(platform, version, 'ebitools'))
+    return out.getvalue()
 
 
 class GitHubUpstreamTests(unittest.TestCase):
@@ -210,6 +226,109 @@ class GitHubUpstreamTests(unittest.TestCase):
                 self.assertTrue(all(x['url'].startswith('https://github.com/BPM-Research-Group/Ebi/releases/download/')
                                     for x in changed['artifacts']))
                 self.assertTrue(all(not x['runtime_verified'] for x in changed['artifacts']))
+
+
+    def test_new_jar_release_is_ingested_and_verified(self):
+        payload = jar_fixture()
+        release_data = release('v0.3.16', ('Ebi.jar',))
+        java_sources = []
+        discovered, prepared, version, warnings = up.latest_compatible_release(
+            [release_data], '0.3.14-alpha.1',
+            fetch=lambda asset, repo: payload, java_source=java_sources)
+        self.assertEqual(len(java_sources), 1)
+        self.assertIn('native String callEbi(', java_sources[0])
+        self.assertEqual(discovered['tag_name'], 'v0.3.16')
+        self.assertEqual(version, '0.3.16')
+        self.assertEqual([platform for platform, _, _ in prepared], list(up.ASSETS))
+        self.assertTrue(all(up.JNI_NEW in data and url.endswith('/Ebi.jar')
+                            for _, data, url in prepared))
+        self.assertEqual(warnings, [])
+
+    def test_missing_compiled_classes_is_not_a_problem(self):
+        # The real JAR does not include Ebi.class. We generate our own minimal
+        # binding instead of using the upstream class initializer.
+        prepared, version = up.jar_artifacts(jar_fixture())
+        self.assertEqual(len(prepared), 2)
+        self.assertEqual(version, '0.3.16')
+
+    def test_reject_bad_jar_declaration(self):
+        bad_source = ('package org.ebitools; public class Ebi { '
+                      'public static native int callEbi(String command, String format, String[] args); }')
+        with self.assertRaisesRegex(RuntimeError, 'incompatible.*callEbi'):
+            up.jar_artifacts(jar_fixture(source=bad_source))
+
+    def test_reject_missing_windows_dll_in_jar(self):
+        with self.assertRaisesRegex(RuntimeError, 'exactly one ebi.dll'):
+            up.jar_artifacts(jar_fixture(files=('libebi.so',)))
+
+    def test_reject_mismatched_jar_native_versions(self):
+        contents = io.BytesIO()
+        with zipfile.ZipFile(contents, 'w') as jar:
+            jar.writestr(up.JAR_SOURCE, 'package org.ebitools; public class Ebi {'
+                         ' public static native String callEbi(String a, String b, String[] c); }')
+            jar.writestr('libebi.so', library('linux-x86_64', '0.3.16', 'ebitools'))
+            jar.writestr('ebi.dll', library('windows-x86_64', '0.3.17', 'ebitools'))
+        with self.assertRaisesRegex(RuntimeError, 'Cannot prove matching'):
+            up.jar_artifacts(contents.getvalue())
+
+    def test_reject_jar_with_old_jni_abi(self):
+        payload = io.BytesIO()
+        with zipfile.ZipFile(payload, 'w') as jar:
+            jar.writestr(up.JAR_SOURCE, 'package org.ebitools; public class Ebi {'
+                         ' public static native String callEbi(String a, String b, String[] c); }')
+            jar.writestr('libebi.so', library('linux-x86_64'))
+            jar.writestr('ebi.dll', library('windows-x86_64'))
+        with self.assertRaisesRegex(RuntimeError, 'missing JNI symbol'):
+            up.jar_artifacts(payload.getvalue())
+
+    def test_jar_release_failure_does_not_fallback(self):
+        with self.assertRaisesRegex(RuntimeError, 'New upstream release v0.3.16 failed JNI validation'):
+            up.latest_compatible_release([release('v0.3.16', ('Ebi.jar','libebi.so','ebi.dll'))],
+                  '0.3.14', fetch=lambda asset, repo: b'Not an archive')
+
+    def test_jar_mode_updates_both_binaries_and_worker_abi(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            old_linux = library('linux-x86_64', '0.3.14-alpha.1')
+            old_windows = library('windows-x86_64', '0.3.14-alpha.1')
+            (root/'native-artifacts.json').write_text(json.dumps(manifest(old_linux, old_windows)))
+            jar_file = root/'Ebi.jar'
+            jar_file.write_bytes(jar_fixture())
+            with mock.patch.multiple(up, ROOT=root, LOCK=root/'native-artifacts.json',
+                                     EMBEDDED=root/'extension/lib/native-artifacts.json'):
+                summary = up.run('jar', None, root/'.ci/upstream.json', jar_file)
+            lock = json.loads((root/'native-artifacts.json').read_text())
+            self.assertTrue(summary['changed'])
+            self.assertEqual(summary['version'], '0.3.16')
+            self.assertEqual(lock['jni_api'], 'ebitools')
+            self.assertEqual(lock['source_jar_sha256'], up.sha(jar_file.read_bytes()))
+            generated = (root / up.RUNTIME_CONSTANTS).read_text()
+            self.assertIn('JNI_API = "ebitools"', generated)
+            self.assertIn('VERSION = "0.3.16"', generated)
+            self.assertIn('native String callEbi(', (root / 'metadata/ebi-java.txt').read_text())
+            for entry in lock['artifacts']:
+                target = root / entry['path']
+                self.assertEqual(up.sha(target.read_bytes()), entry['sha256'])
+                self.assertEqual(entry['url'], None)
+
+    def test_pinned_jar_reconstruction_checks_its_hashes(self):
+        payload = jar_fixture()
+        prepared, _ = up.jar_artifacts(payload)
+        lock = {'version':'0.3.16', 'jni_api': 'ebitools',
+                'source_jar_url': 'https://github.com/BPM-Research-Group/Ebi/releases/download/v0.3.16/Ebi.jar',
+                'artifacts': [dict(platform=platform,
+                                  path=f'extension/lib/{platform}/{up.ASSETS[platform]}',
+                                  size=len(binary), sha256=up.sha(binary))
+                              for platform, binary, _ in prepared]}
+        with mock.patch.object(up, 'download_asset', return_value=payload) as dl:
+            restored, message = up.pinned_binaries(lock, None)
+        self.assertEqual(len(restored), 2)
+        self.assertIn('Ebi JAR', message)
+        dl.assert_called_once()
+        lock['artifacts'][0]['sha256'] = 'f' * 64
+        with mock.patch.object(up, 'download_asset', return_value=payload):
+            with self.assertRaisesRegex(RuntimeError, 'embedded library changed'):
+                up.pinned_binaries(lock, None)
 
 
 if __name__ == '__main__':
