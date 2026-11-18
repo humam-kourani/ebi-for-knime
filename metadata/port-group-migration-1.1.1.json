@@ -1,4 +1,8 @@
 {
+  "org.ryoo.knimeEbi.node.EbiAnalyseAllTracesNodeFactory": {
+    "ebi-input-0": "Input: Log or process model",
+    "ebi-output": "Output: Finite stochastic language"
+  },
   "org.ryoo.knimeEbi.node.EbiAnalyseCohortAnalysisNodeFactory": {
     "ebi-input-0": "Input: Event log",
     "ebi-output": "Output: Text result"
@@ -6,6 +10,40 @@
   "org.ryoo.knimeEbi.node.EbiAnalyseCompletenessNodeFactory": {
     "ebi-input-0": "Input: Event log",
     "ebi-output": "Output: Exact result"
+  },
+  "org.ryoo.knimeEbi.node.EbiAnalyseCoverageNodeFactory": {
+    "ebi-input-0": "Input: Log or process model",
+    "ebi-output": "Output: Finite stochastic language"
+  },
+  "org.ryoo.knimeEbi.node.EbiAnalyseDirectlyFollowsEdgeDifferenceNodeFactory": {
+    "ebi-input-0": "Input: First process model",
+    "ebi-input-1": "Input: Second process model",
+    "ebi-output": "Output: Exact result"
+  },
+  "org.ryoo.knimeEbi.node.EbiAnalyseDirectlyFollowsEdgeDifferenceNoFrequenciesNodeFactory": {
+    "ebi-input-0": "Input: First process model",
+    "ebi-input-1": "Input: Second process model",
+    "ebi-output": "Output: Exact result"
+  },
+  "org.ryoo.knimeEbi.node.EbiAnalyseEntropyNodeFactory": {
+    "ebi-input-0": "Input: Log or process model",
+    "ebi-output": "Output: Exact result"
+  },
+  "org.ryoo.knimeEbi.node.EbiAnalyseMedoidNodeFactory": {
+    "ebi-input-0": "Input: Log or process model",
+    "ebi-output": "Output: Finite language"
+  },
+  "org.ryoo.knimeEbi.node.EbiAnalyseMinimumProbabilityTracesNodeFactory": {
+    "ebi-input-0": "Input: Log or process model",
+    "ebi-output": "Output: Finite stochastic language"
+  },
+  "org.ryoo.knimeEbi.node.EbiAnalyseModeNodeFactory": {
+    "ebi-input-0": "Input: Log or process model",
+    "ebi-output": "Output: Finite stochastic language"
+  },
+  "org.ryoo.knimeEbi.node.EbiAnalyseMostLikelyTracesNodeFactory": {
+    "ebi-input-0": "Input: Log or process model",
+    "ebi-output": "Output: Finite stochastic language"
   },
   "org.ryoo.knimeEbi.node.EbiAnalyseVarietyNodeFactory": {
     "ebi-input-0": "Input: Event log",
@@ -23,13 +61,26 @@
     "ebi-input-0": "Input: Process model",
     "ebi-output": "Output: Boolean result"
   },
+  "org.ryoo.knimeEbi.node.EbiAnalyseNonStochasticClusterNodeFactory": {
+    "ebi-input-0": "Input: Event log",
+    "ebi-output": "Output: Finite language"
+  },
   "org.ryoo.knimeEbi.node.EbiAnalyseNonStochasticEmptyTracesNodeFactory": {
     "ebi-input-0": "Input: Process tree",
     "ebi-output": "Output: Boolean result"
   },
+  "org.ryoo.knimeEbi.node.EbiAnalyseNonStochasticExecutionsNodeFactory": {
+    "ebi-input-0": "Input: Event log",
+    "ebi-input-1": "Input: Process model",
+    "ebi-output": "Output: Executions"
+  },
   "org.ryoo.knimeEbi.node.EbiAnalyseNonStochasticInfinitelyManyTracesNodeFactory": {
     "ebi-input-0": "Input: Process model",
     "ebi-output": "Output: Boolean result"
+  },
+  "org.ryoo.knimeEbi.node.EbiAnalyseNonStochasticMedoidNodeFactory": {
+    "ebi-input-0": "Input: Log or process model",
+    "ebi-output": "Output: Finite language"
   },
   "org.ryoo.knimeEbi.node.EbiAnalyseNonStochasticTimestampsOrderedNodeFactory": {
     "ebi-input-0": "Input: Event log",
@@ -64,6 +115,16 @@
     "ebi-output": "Output: Exact result"
   },
   "org.ryoo.knimeEbi.node.EbiConformanceEntropicRelevanceNodeFactory": {
+    "ebi-input-0": "Input: Event log",
+    "ebi-input-1": "Input: Stochastic model",
+    "ebi-output": "Output: Exact result"
+  },
+  "org.ryoo.knimeEbi.node.EbiConformanceGainPrecisionNodeFactory": {
+    "ebi-input-0": "Input: Event log",
+    "ebi-input-1": "Input: Stochastic model",
+    "ebi-output": "Output: Exact result"
+  },
+  "org.ryoo.knimeEbi.node.EbiConformanceGainRecallNodeFactory": {
     "ebi-input-0": "Input: Event log",
     "ebi-input-1": "Input: Stochastic model",
     "ebi-output": "Output: Exact result"
@@ -103,6 +164,41 @@
     "ebi-input-1": "Input: Second log or stochastic model",
     "ebi-output": "Output: Exact result"
   },
+  "org.ryoo.knimeEbi.node.EbiConformanceNonStochasticAlignmentsNodeFactory": {
+    "ebi-input-0": "Input: Event log",
+    "ebi-input-1": "Input: Process model",
+    "ebi-output": "Output: Stochastic language of alignments"
+  },
+  "org.ryoo.knimeEbi.node.EbiConformanceNonStochasticEscapingEdgesPrecisionNodeFactory": {
+    "ebi-input-0": "Input: Ebi document",
+    "ebi-input-1": "Input: Process model",
+    "ebi-output": "Output: Exact result"
+  },
+  "org.ryoo.knimeEbi.node.EbiConformanceNonStochasticFittingTracesNodeFactory": {
+    "ebi-input-0": "Input: Ebi document",
+    "ebi-output": "Output: Exact result"
+  },
+  "org.ryoo.knimeEbi.node.EbiConformanceNonStochasticSetAlignmentsNodeFactory": {
+    "ebi-input-0": "Input: Event log",
+    "ebi-input-1": "Input: Log or process model",
+    "ebi-output": "Output: Language of alignments"
+  },
+  "org.ryoo.knimeEbi.node.EbiConformanceNonStochasticTraceFitnessNodeFactory": {
+    "ebi-input-0": "Input: Ebi document",
+    "ebi-output": "Output: Exact result"
+  },
+  "org.ryoo.knimeEbi.node.EbiConvertBusinessProcessModelAndNotationNodeFactory": {
+    "ebi-input-0": "Input: Process model",
+    "ebi-output": "Output: Business process model and notation"
+  },
+  "org.ryoo.knimeEbi.node.EbiConvertFiniteLanguageNodeFactory": {
+    "ebi-input-0": "Input: Log or process model",
+    "ebi-output": "Output: Finite language"
+  },
+  "org.ryoo.knimeEbi.node.EbiConvertFiniteStochasticLanguageNodeFactory": {
+    "ebi-input-0": "Input: Log or process model",
+    "ebi-output": "Output: Finite stochastic language"
+  },
   "org.ryoo.knimeEbi.node.EbiConvertLabelledPetriNetNodeFactory": {
     "ebi-input-0": "Input: Process model",
     "ebi-output": "Output: Petri net"
@@ -114,6 +210,10 @@
   "org.ryoo.knimeEbi.node.EbiConvertStochasticDeterministicFiniteAutomatonNodeFactory": {
     "ebi-input-0": "Input: Log or process model",
     "ebi-output": "Output: Stochastic deterministic automaton"
+  },
+  "org.ryoo.knimeEbi.node.EbiConvertStochasticDirectlyFollowsModelNodeFactory": {
+    "ebi-input-0": "Input: Process model",
+    "ebi-output": "Output: Stochastic directly follows model"
   },
   "org.ryoo.knimeEbi.node.EbiConvertStochasticLabelledPetriNetNodeFactory": {
     "ebi-input-0": "Input: Process model",
@@ -127,7 +227,17 @@
     "ebi-input-0": "Input: Event log",
     "ebi-output": "Output: Stochastic deterministic automaton"
   },
+  "org.ryoo.knimeEbi.node.EbiDiscoverAlignmentsStochasticBusinessProcessModelAndNotationNodeFactory": {
+    "ebi-input-0": "Input: Event log",
+    "ebi-input-1": "Input: Process model",
+    "ebi-output": "Output: Stochastic business process model and notation"
+  },
   "org.ryoo.knimeEbi.node.EbiDiscoverAlignmentsStochasticLabelledPetriNetsNodeFactory": {
+    "ebi-input-0": "Input: Event log",
+    "ebi-input-1": "Input: Petri net",
+    "ebi-output": "Output: Stochastic Petri net"
+  },
+  "org.ryoo.knimeEbi.node.EbiDiscoverCanItBeDoneOptimallyNodeFactory": {
     "ebi-input-0": "Input: Event log",
     "ebi-input-1": "Input: Petri net",
     "ebi-output": "Output: Stochastic Petri net"
@@ -135,6 +245,11 @@
   "org.ryoo.knimeEbi.node.EbiDiscoverDirectlyFollowsGraphNodeFactory": {
     "ebi-input-0": "Input: Event log",
     "ebi-output": "Output: Directly-follows graph"
+  },
+  "org.ryoo.knimeEbi.node.EbiDiscoverOccurrenceStochasticBusinessProcessModelAndNotationNodeFactory": {
+    "ebi-input-0": "Input: Event log",
+    "ebi-input-1": "Input: Process model",
+    "ebi-output": "Output: Stochastic business process model and notation"
   },
   "org.ryoo.knimeEbi.node.EbiDiscoverOccurrenceStochasticLabelledPetriNetNodeFactory": {
     "ebi-input-0": "Input: Event log",
@@ -146,6 +261,10 @@
     "ebi-input-1": "Input: Process tree",
     "ebi-output": "Output: Stochastic process tree"
   },
+  "org.ryoo.knimeEbi.node.EbiDiscoverRandomStochasticBusinessProcessModelAndNotationNodeFactory": {
+    "ebi-input-0": "Input: Process model",
+    "ebi-output": "Output: Stochastic business process model and notation"
+  },
   "org.ryoo.knimeEbi.node.EbiDiscoverRandomStochasticLabelledPetriNetNodeFactory": {
     "ebi-input-0": "Input: Petri net",
     "ebi-output": "Output: Stochastic Petri net"
@@ -153,6 +272,10 @@
   "org.ryoo.knimeEbi.node.EbiDiscoverRandomStochasticProcessTreeNodeFactory": {
     "ebi-input-0": "Input: Process tree",
     "ebi-output": "Output: Stochastic process tree"
+  },
+  "org.ryoo.knimeEbi.node.EbiDiscoverUniformStochasticBusinessProcessModelAndNotationNodeFactory": {
+    "ebi-input-0": "Input: Process model",
+    "ebi-output": "Output: Stochastic business process model and notation"
   },
   "org.ryoo.knimeEbi.node.EbiDiscoverUniformStochasticLabelledPetriNetNodeFactory": {
     "ebi-input-0": "Input: Petri net",
@@ -186,9 +309,25 @@
     "ebi-input-0": "Input: Event log",
     "ebi-output": "Output: Process tree"
   },
+  "org.ryoo.knimeEbi.node.EbiDiscoverNonStochasticSplitMinerNodeFactory": {
+    "ebi-input-0": "Input: Event log",
+    "ebi-output": "Output: Business process model and notation"
+  },
   "org.ryoo.knimeEbi.node.EbiDiscoverNonStochasticTraceModelNodeFactory": {
     "ebi-input-0": "Input: Event log",
     "ebi-output": "Output: Process tree"
+  },
+  "org.ryoo.knimeEbi.node.EbiFilterLanguageTracesEmptyNodeFactory": {
+    "ebi-input-0": "Input: Event log",
+    "ebi-output": "Output: Finite language"
+  },
+  "org.ryoo.knimeEbi.node.EbiFilterLanguageTracesEventActivityNodeFactory": {
+    "ebi-input-0": "Input: Event log",
+    "ebi-output": "Output: Finite language"
+  },
+  "org.ryoo.knimeEbi.node.EbiFilterLanguageTracesLengthNodeFactory": {
+    "ebi-input-0": "Input: Event log",
+    "ebi-output": "Output: Finite language"
   },
   "org.ryoo.knimeEbi.node.EbiFilterTracesEmptyNodeFactory": {
     "ebi-input-0": "Input: Event log",
@@ -201,6 +340,26 @@
   "org.ryoo.knimeEbi.node.EbiFilterTracesLengthNodeFactory": {
     "ebi-input-0": "Input: Event log",
     "ebi-output": "Output: Event log"
+  },
+  "org.ryoo.knimeEbi.node.EbiFilterStochasticLanguageTracesEmptyNodeFactory": {
+    "ebi-input-0": "Input: Event log",
+    "ebi-output": "Output: Finite stochastic language"
+  },
+  "org.ryoo.knimeEbi.node.EbiFilterStochasticLanguageTracesEventActivityNodeFactory": {
+    "ebi-input-0": "Input: Event log",
+    "ebi-output": "Output: Finite stochastic language"
+  },
+  "org.ryoo.knimeEbi.node.EbiFilterStochasticLanguageTracesLeastLikelyNodeFactory": {
+    "ebi-input-0": "Input: Event log",
+    "ebi-output": "Output: Finite stochastic language"
+  },
+  "org.ryoo.knimeEbi.node.EbiFilterStochasticLanguageTracesLengthNodeFactory": {
+    "ebi-input-0": "Input: Event log",
+    "ebi-output": "Output: Finite stochastic language"
+  },
+  "org.ryoo.knimeEbi.node.EbiFilterStochasticLanguageTracesMostLikelyNodeFactory": {
+    "ebi-input-0": "Input: Event log",
+    "ebi-output": "Output: Finite stochastic language"
   },
   "org.ryoo.knimeEbi.node.EbiInformationNodeFactory": {
     "ebi-input-0": "Input: Log or process model",
@@ -223,6 +382,14 @@
     "ebi-input-0": "Input: Event log",
     "ebi-output": "Output: Event log"
   },
+  "org.ryoo.knimeEbi.node.EbiSamplePartiallyOrderedTracesNodeFactory": {
+    "ebi-input-0": "Input: Process model",
+    "ebi-output": "Output: Finite stochastic partially ordered language"
+  },
+  "org.ryoo.knimeEbi.node.EbiSampleTracesNodeFactory": {
+    "ebi-input-0": "Input: Stochastic model",
+    "ebi-output": "Output: Finite stochastic language"
+  },
   "org.ryoo.knimeEbi.node.EbiTestBootstrapTestNodeFactory": {
     "ebi-input-0": "Input: First event log",
     "ebi-input-1": "Input: Second event log",
@@ -236,6 +403,10 @@
     "ebi-input-0": "Input: Event log",
     "ebi-input-1": "Input: Stochastic model",
     "ebi-output": "Output: Statistical report"
+  },
+  "org.ryoo.knimeEbi.node.EbiVisualiseGraphNodeFactory": {
+    "ebi-input-0": "Input: Process model",
+    "ebi-output": "Output: Scalable vector graphics"
   },
   "org.ryoo.knimeEbi.node.EbiVisualiseTextNodeFactory": {
     "ebi-input-0": "Input: Log or process model",
