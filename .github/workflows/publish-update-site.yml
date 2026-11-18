@@ -1,0 +1,131 @@
+name: Publish tested Ebi KNIME update site
+
+# Promotion is deliberately manual: install and test the release ZIP in KNIME
+# before selecting that exact GitHub Release for public distribution.
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Tested GitHub Release to publish (example: v1.1.3)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ebi-knime-pages
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Validate release and prepare p2 site
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Download exact GitHub release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]]; then
+            echo "Invalid release tag: $RELEASE_TAG" >&2
+            exit 1
+          fi
+          mkdir -p release
+          gh release view "$RELEASE_TAG" --json isDraft,isPrerelease \
+            --jq 'if (.isDraft or .isPrerelease) then error("Refusing draft/prerelease") else "Published release confirmed" end'
+          gh release download "$RELEASE_TAG" --dir release \
+            --pattern 'knime-ebi-update-site.zip' --pattern 'SHA256SUMS.txt'
+
+      - name: Verify ZIP checksum and p2 repository layout
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import os
+          from pathlib import Path, PurePosixPath
+          import re
+          import zipfile
+
+          release = Path('release')
+          archive_path = release / 'knime-ebi-update-site.zip'
+          checksums = release / 'SHA256SUMS.txt'
+          target = 'knime-ebi-update-site.zip'
+
+          if not archive_path.is_file() or not checksums.is_file():
+              raise SystemExit('Missing release ZIP or SHA256SUMS.txt')
+          matches = []
+          for line in checksums.read_text(encoding='utf-8').splitlines():
+              entry = re.fullmatch(r'([0-9a-fA-F]{64})\s+\*?(.+)', line.strip())
+              if entry and entry.group(2).removeprefix('./') == target:
+                  matches.append(entry.group(1).lower())
+          if len(matches) != 1:
+              raise SystemExit('Missing or ambiguous ZIP checksum in release manifest')
+          digest = hashlib.file_digest(archive_path.open('rb'), 'sha256').hexdigest()
+          if digest != matches[0]:
+              raise SystemExit('Release ZIP checksum does not match SHA256SUMS.txt')
+
+          destination = Path('public')
+          destination.mkdir()
+          with zipfile.ZipFile(archive_path) as archive:
+              entries = archive.infolist()
+              names = {entry.filename for entry in entries}
+              for entry in entries:
+                  item = PurePosixPath(entry.filename)
+                  if (item.is_absolute() or '..' in item.parts or '\\' in entry.filename
+                          or (entry.external_attr >> 16) & 0o170000 == 0o120000):
+                      raise SystemExit(f'Unsafe ZIP entry: {entry.filename}')
+              if not ({'content.jar', 'content.xml', 'content.xml.xz'} & names):
+                  raise SystemExit('Missing Eclipse p2 content metadata')
+              if not ({'artifacts.jar', 'artifacts.xml', 'artifacts.xml.xz'} & names):
+                  raise SystemExit('Missing Eclipse p2 artifact metadata')
+              plugins = [n for n in names if re.fullmatch(
+                  r'plugins/org\.ryoo\.knimeEbi_[^/]+\.jar', n)]
+              features = [n for n in names if re.fullmatch(
+                  r'features/org\.ryoo\.knimeEbi\.feature_[^/]+\.jar', n)]
+              if len(plugins) != 1 or len(features) != 1:
+                  raise SystemExit('Expected exactly one Ebi plug-in and Ebi feature JAR')
+              if archive.testzip() is not None:
+                  raise SystemExit('ZIP CRC integrity check failed')
+              archive.extractall(destination)
+
+          # GitHub Pages must serve p2 paths verbatim, without Jekyll processing.
+          (destination / '.nojekyll').touch()
+          tag = os.environ['RELEASE_TAG']
+          (destination / 'index.html').write_text(
+              '<!doctype html><html lang="en"><meta charset="utf-8">'
+              '<title>Ebi for KNIME update site</title>'
+              '<h1>Ebi for KNIME update site</h1>'
+              '<p>Install this URL using KNIME: Help &gt; Install New Software.</p>'
+              f'<p>Published release: {tag}</p></html>\n', encoding='utf-8')
+          print(f'Validated {tag}: {plugins[0]} and {features[0]}')
+          PY
+
+      - name: Upload validated Pages content
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+  deploy:
+    name: Publish to GitHub Pages
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy approved release
+        id: deployment
+        uses: actions/deploy-pages@v4
