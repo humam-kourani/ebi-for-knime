@@ -158,7 +158,7 @@ public final class NativeBridgeRegressionTest {
                 fraction.equals("1") || fraction.endsWith("\n1"));
         check("Real JNI metadata", validJavaMetadata(
                 CallEbi.call_ebi(javaMetadataCommand(), ".txt", new String[0])));
-        rejects("Real JNI native error", IllegalStateException.class, "Ebi no-such-command",
+        rejects("Real JNI native error", IllegalStateException.class, "command not found",
                 () -> CallEbi.call_ebi("Ebi no-such-command", ".txt", new String[0]));
         String unicode = log.replace("value=\"A\"", "value=\"Überprüfung\"");
         check("Real JNI UTF-8", CallEbi.call_ebi("Ebi convert log", ".xes", new String[]{unicode}).contains("Überprüfung"));
