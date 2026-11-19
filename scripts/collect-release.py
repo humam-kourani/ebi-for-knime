@@ -70,17 +70,6 @@ def collect(commit: str):
     shutil.copy2(site,dist/site.name)
     shutil.copy2(ROOT/'LICENSE',dist/'LICENSE')
     shutil.copy2(ROOT/'native-artifacts.json',dist/'native-artifacts.json')
-    version = re.search(r'<version>(\d+\.\d+\.\d+)-SNAPSHOT</version>',
-                        (ROOT/'pom.xml').read_text()).group(1)
-    (dist/'RELEASE_NOTES.md').write_text(
-        f'Ebi for KNIME v{version}\n\n'
-        f'- Ebi native version: {lock["version"]}\n'
-        '- KNIME Analytics Platform 5.12 and PM4KNIME 3.0\n'
-        '- 64-bit Windows and Linux\n\n'
-        'Install: Preferences > Install/Update > Available Software Sites > Add\n'
-        'URL: https://humam-kourani.github.io/ebi-for-knime/\n'
-        'Then Menu > Install Extensions. For updates: Menu > Check for updates.\n'
-        'Restart KNIME after installation or an update.\n', encoding='utf-8')
     (dist/'build-provenance.json').write_text(json.dumps({'commit_before_release':commit,
         'native_version':lock.get('version'),'knime':'5.12.0','java':'21',
         'pm4knime':'3.0.0.202610271214','native_compilation':False},indent=2)+'\n')

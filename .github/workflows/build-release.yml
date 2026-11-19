@@ -329,4 +329,4 @@ jobs:
           gh release create "$RELEASE_TAG" \
             dist/knime-ebi-update-site.zip dist/REPORT.md dist/SHA256SUMS.txt \
             --verify-tag --title "Ebi for KNIME ${RELEASE_TAG}" \
-            --notes-file dist/RELEASE_NOTES.md
+            --notes-file dist/REPORT.md
