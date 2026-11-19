@@ -72,6 +72,12 @@ def main():
         if upstream_result.testsRun == 0 or not upstream_result.wasSuccessful():
             raise RuntimeError('GitHub Releases JNI validation regressions failed')
         report['github_releases'] = {'passed': upstream_result.testsRun, 'failed': 0}
+        p2_suite = unittest.defaultTestLoader.discover(
+            str(root / 'tests'), pattern='test_update_site_verification.py')
+        p2_result = unittest.TextTestRunner(verbosity=1).run(p2_suite)
+        if p2_result.testsRun == 0 or not p2_result.wasSuccessful():
+            raise RuntimeError('p2 bundle provisioning regressions failed')
+        report['p2_provisioning'] = {'passed': p2_result.testsRun, 'failed': 0}
     path = options.report if options.report.is_absolute() else root / options.report
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
