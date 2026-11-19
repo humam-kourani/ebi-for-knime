@@ -65,27 +65,24 @@ def collect(commit: str):
     dist.mkdir(exist_ok=True)
     shutil.copy2(site,dist/site.name)
     shutil.copy2(ROOT/'LICENSE',dist/'LICENSE')
-    (dist/Path(plugins[0]).name).write_bytes(plugin)
     shutil.copy2(ROOT/'native-artifacts.json',dist/'native-artifacts.json')
-    (dist/'INSTALL.txt').write_text('''Ebi for KNIME (KNIME 5.12 / PM4KNIME 3.0)
-
-1. Install PM4KNIME in KNIME Analytics Platform 5.12.
-2. Help > Install New Software > Add > Archive > knime-ebi-update-site.zip.
-3. Select Ebi Process Mining for KNIME; accept the Process Mining Extension prerequisite.
-4. Restart KNIME. 
-
-This installer includes the Ebi Windows/Linux x86-64 native JNI libraries.
-Other native platforms are not supported. Read native-artifacts.json for exact
-upstream binary provenance. Do not install the plug-in JAR by itself.
-
-''',encoding='utf-8')
+    version = re.search(r'<version>(\d+\.\d+\.\d+)-SNAPSHOT</version>',
+                        (ROOT/'pom.xml').read_text()).group(1)
+    (dist/'RELEASE_NOTES.md').write_text(
+        f'Ebi for KNIME v{version}\n\n'
+        f'- Ebi native version: {lock["version"]}\n'
+        '- KNIME Analytics Platform 5.12 and PM4KNIME 3.0\n'
+        '- 64-bit Windows and Linux\n\n'
+        'Install: Preferences > Install/Update > Available Software Sites > Add\n'
+        'URL: https://humam-kourani.github.io/ebi-for-knime/\n'
+        'Then Menu > Install Extensions. For updates: Menu > Check for updates.\n'
+        'Restart KNIME after installation or an update.\n', encoding='utf-8')
     (dist/'build-provenance.json').write_text(json.dumps({'commit_before_release':commit,
         'native_version':lock.get('version'),'knime':'5.12.0','java':'21',
         'pm4knime':'3.0.0.202610271214','native_compilation':False},indent=2)+'\n')
     digest = []
-    for path in sorted(dist.iterdir()):
-        if path.is_file() and path.name!='SHA256SUMS.txt':
-            digest.append(hashlib.sha256(path.read_bytes()).hexdigest()+'  '+path.name)
+    for path in (dist/'knime-ebi-update-site.zip', dist/'REPORT.md'):
+        digest.append(hashlib.sha256(path.read_bytes()).hexdigest()+'  '+path.name)
     (dist/'SHA256SUMS.txt').write_text('\n'.join(digest)+'\n')
     print('Verified and collected installable update site:',dist/site.name)
 

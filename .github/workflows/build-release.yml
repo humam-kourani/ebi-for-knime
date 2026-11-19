@@ -292,7 +292,7 @@ jobs:
           info.write_text(json.dumps(data,indent=2)+'\n')
           dist=Path('dist')
           sums=['%s  %s'%(hashlib.sha256(p.read_bytes()).hexdigest(),p.name)
-                for p in sorted(dist.iterdir()) if p.is_file() and p.name!='SHA256SUMS.txt']
+                for p in (dist/'knime-ebi-update-site.zip', dist/'REPORT.md')]
           (dist/'SHA256SUMS.txt').write_text('\n'.join(sums)+'\n')
           PYWIN
       - name: Commit vetted metadata/version changes and tag the exact release sources
@@ -327,8 +327,6 @@ jobs:
         run: |
           set -euo pipefail
           gh release create "$RELEASE_TAG" \
-            dist/knime-ebi-update-site.zip dist/org.ryoo.knimeEbi_*.jar \
-            dist/REPORT.md dist/REPORT.json dist/SHA256SUMS.txt \
-            dist/native-artifacts.json dist/INSTALL.txt dist/build-provenance.json \
+            dist/knime-ebi-update-site.zip dist/REPORT.md dist/SHA256SUMS.txt \
             --verify-tag --title "Ebi for KNIME ${RELEASE_TAG}" \
-            --notes-file dist/REPORT.md
+            --notes-file dist/RELEASE_NOTES.md
