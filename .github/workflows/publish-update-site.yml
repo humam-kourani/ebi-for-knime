@@ -105,7 +105,9 @@ jobs:
               '<!doctype html><html lang="en"><meta charset="utf-8">'
               '<title>Ebi for KNIME update site</title>'
               '<h1>Ebi for KNIME update site</h1>'
-              '<p>Install this URL using KNIME: Help &gt; Install New Software.</p>'
+              '<p>In KNIME Preferences, open Install/Update &gt; Available Software Sites, '
+              'click Add and enter this page URL. Then choose Menu &gt; Install Extensions.</p>'
+              '<p>For updates, use Menu &gt; Check for updates.</p>'
               f'<p>Published release: {tag}</p></html>\n', encoding='utf-8')
           print(f'Validated {tag}: {plugins[0]} and {features[0]}')
           PY
