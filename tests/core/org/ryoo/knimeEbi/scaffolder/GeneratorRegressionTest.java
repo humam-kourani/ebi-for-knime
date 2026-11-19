@@ -363,6 +363,17 @@ public final class GeneratorRegressionTest {
             equal("EbiDocumentPortObject", command("discover occurrence stochastic-process-tree").output.portType);
             equal("ImagePortObject", command("visualise graph").output.portType);
         });
+        test("CSV inputs create KNIME table alternatives without changing outputs", () -> {
+            equal(List.of("BufferedDataTable", "XLogPortObject"),
+                EbiManualMetadata.orderedInputPorts(new java.util.LinkedHashSet<>(List.of(".csv", ".xes"))));
+            equal(List.of("XLogPortObject", "BufferedDataTable"),
+                EbiManualMetadata.orderedInputPorts(new java.util.LinkedHashSet<>(List.of(".xes", ".csv"))));
+            yes(!EbiManualMetadata.orderedInputPorts(
+                new java.util.LinkedHashSet<>(List.of(".xes"))).contains("BufferedDataTable"));
+            yes(command("convert log").inputs.stream().anyMatch(p -> p.isPort
+                && p.supportedPortTypes.contains("BufferedDataTable")));
+            yes(!command("convert log").output.supportedPortTypes.contains("BufferedDataTable"));
+        });
         test("all generated commands have valid signatures and outputs", () -> {
             var names = new java.util.HashSet<String>();
             var classes = new java.util.HashSet<String>();

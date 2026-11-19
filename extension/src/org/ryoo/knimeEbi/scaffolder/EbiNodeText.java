@@ -61,6 +61,8 @@ public final class EbiNodeText {
         if (parameter.supportedPortTypes.contains("EbiDocumentPortObject")) {
             result.append(paragraph("Accepted Ebi document formats: " + String.join(", ", parameter.acceptedDocumentFormats) + "."));
         }
+        if (parameter.supportedPortTypes.contains("BufferedDataTable"))
+            result.append(paragraph("CSV table input: first column is the trace ID, second the activity; at least two event rows."));
         result.append(paragraph("Required input. Select exactly one supported representation."));
         return result.toString();
     }
@@ -171,7 +173,7 @@ public final class EbiNodeText {
             case "BpmnPortObject" -> "BPMN model";
             case "ImagePortObject" -> "SVG image";
             case "EbiDocumentPortObject" -> "Ebi document";
-            case "BufferedDataTable" -> "Result table";
+            case "BufferedDataTable" -> "KNIME table";
             default -> throw new IllegalArgumentException("Unknown port type label: " + type);
         };
     }
@@ -192,13 +194,16 @@ public final class EbiNodeText {
         if (tag.equals("LOG") || tag.startsWith("LANG") || tag.equals("SLANG") || text.contains("event log")
                 || text.contains("(log)") || text.contains("finite language")) return "Event log";
         if (text.contains("sampleable stochastic") || text.contains("log or model")) return "Log or stochastic model";
-        if (parameter.supportedPortTypes.size() == 1) return portTypeName(parameter.portType);
-        if (parameter.supportedPortTypes.size() == 2 && parameter.supportedPortTypes.containsAll(
+        List<String> modelPorts = parameter.supportedPortTypes.stream()
+            .filter(type -> !type.equals("BufferedDataTable")).toList();
+        if (modelPorts.isEmpty()) return "Event log";
+        if (modelPorts.size() == 1) return portTypeName(modelPorts.get(0));
+        if (modelPorts.size() == 2 && modelPorts.containsAll(
                 List.of("ProcessTreePortObject", "EbiDocumentPortObject"))
                 && !parameter.acceptedDocumentFormats.isEmpty()
                 && parameter.acceptedDocumentFormats.stream().allMatch(f -> f.equals(".ptree") || f.equals(".sptree")))
             return "Process tree";
-        if (parameter.supportedPortTypes.contains("XLogPortObject")) return "Log or process model";
+        if (modelPorts.contains("XLogPortObject")) return "Log or process model";
         return "Process model";
     }
 

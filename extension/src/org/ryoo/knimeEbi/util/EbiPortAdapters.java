@@ -8,7 +8,10 @@ import java.util.List;
 import java.util.Map;
 import org.knime.base.data.xml.SvgCell;
 import org.knime.base.data.xml.SvgImageContent;
+import org.knime.core.data.DataCell;
+import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.StringValue;
 import org.knime.core.data.def.StringCell;
 import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.port.PortObject;
@@ -81,6 +84,7 @@ public final class EbiPortAdapters {
 
     public static String serialize(final PortObject port) throws Exception {
         if (port instanceof EbiDocumentPortObject doc) return doc.getText();
+        if (port instanceof BufferedDataTable table) return writeCsv(table);
         if (port instanceof XLogPortObject) return XESUtil.writeLogToXesString(port);
         if (port instanceof ProcessTreePortObject tree) {
             if (Pm4Reflection.call(tree, "getTree") == null) throw new IllegalArgumentException("The process-tree port is empty.");
@@ -90,6 +94,23 @@ public final class EbiPortAdapters {
         if (port instanceof BpmnPortObject bpmn) return XmlText.utf8(bpmn.getBPMN(), "definitions");
         if (port instanceof DfgMsdPortObject) return DfgCodec.write(readDfgMsd(port));
         throw new IllegalArgumentException("No Ebi serializer for " + port.getClass().getName());
+    }
+
+    private static String writeCsv(final BufferedDataTable table) {
+        DataTableSpec spec = table.getDataTableSpec();
+        List<String> header = new ArrayList<>();
+        for (int i = 0; i < spec.getNumColumns(); i++) header.add(spec.getColumnSpec(i).getName());
+        EbiCsv.Writer writer = new EbiCsv.Writer(header);
+        for (DataRow row : table) {
+            List<String> values = new ArrayList<>(header.size());
+            for (int i = 0; i < header.size(); i++) {
+                DataCell cell = row.getCell(i);
+                values.add(cell.isMissing() ? null
+                    : cell instanceof StringValue string ? string.getStringValue() : cell.toString());
+            }
+            writer.append(values);
+        }
+        return writer.finish();
     }
 
     private static String writePetriNet(Object port) throws Exception {

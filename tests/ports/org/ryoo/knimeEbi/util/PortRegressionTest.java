@@ -40,6 +40,21 @@ public final class PortRegressionTest {
         test("raw document accepts explicit format", () -> EbiPortContract.validateDocumentFormat(List.of(".slpn", ".sdfa"), ".slpn", 0));
         test("raw document rejects incompatible format", () -> fails(() -> EbiPortContract.validateDocumentFormat(List.of(".slpn"), ".xes", 1)));
         test("raw document rejects missing whitelist", () -> fails(() -> EbiPortContract.validateDocumentFormat(List.of(), ".slpn", 0)));
+        test("CSV escapes commas, quotes, Unicode, newlines and missing attributes", () -> {
+            EbiCsv.Writer writer = new EbiCsv.Writer(List.of("case id", "activity", "note"));
+            writer.append(List.of("case-1", "A,\"B\"", "line 1\nline 2"));
+            writer.append(java.util.Arrays.asList("case-1", "Ü東", null));
+            equal("\"case id\",\"activity\",\"note\"\n\"case-1\",\"A,\"\"B\"\"\",\"line 1\nline 2\"\n\"case-1\",\"Ü東\",\"\"\n", writer.finish());
+        });
+        test("CSV rejects missing trace/activity, bad columns, and too few events", () -> {
+            fails(() -> new EbiCsv.Writer(List.of("activity")));
+            fails(() -> new EbiCsv.Writer(List.of("same", "same")));
+            EbiCsv.Writer writer = new EbiCsv.Writer(List.of("case", "activity"));
+            fails(() -> writer.append(java.util.Arrays.asList("case-1", null)));
+            fails(() -> writer.append(List.of("case-1")));
+            writer.append(List.of("case-1", "A"));
+            fails(writer::finish);
+        });
         test("native document UTF8 large roundtrip", () -> {
             EbiDocument original = new EbiDocument(".slpn", "stochastic labelled Petri net\nÅ東𝛑\n".repeat(10000));
             ByteArrayOutputStream bytes = new ByteArrayOutputStream(); original.write(new DataOutputStream(bytes));

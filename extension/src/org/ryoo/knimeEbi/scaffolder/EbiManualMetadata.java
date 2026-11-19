@@ -211,9 +211,11 @@ public final class EbiManualMetadata {
     /** Preserve Ebi's accepted-format order; put the generic document after typed ports. */
     static List<String> orderedInputPorts(final Set<String> formats) {
         LinkedHashSet<String> ports = new LinkedHashSet<>();
-        for (String format : formats)
+        for (String format : formats) {
+            if (format.equals(".csv")) ports.add("BufferedDataTable");
             for (Map.Entry<String, String> adapter : INPUT_FORMATS.entrySet())
                 if (format.equals(adapter.getValue())) ports.add(adapter.getKey());
+        }
         if (formats.stream().anyMatch(DOCUMENT_FORMATS::contains)) ports.add("EbiDocumentPortObject");
         return List.copyOf(ports);
     }
