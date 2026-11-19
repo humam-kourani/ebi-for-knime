@@ -202,13 +202,20 @@ public final class EbiManualMetadata {
     private static EbiCommandMetadataParameter parameter(final Argument a, final String originalType) {
         String description = a.name.replace("\\_", " ") + "\n" + plain(a.help) + "\nAccepted values: " + plain(a.accepted);
         if (a.formats.isEmpty()) return new EbiCommandMetadataParameter(originalType, "", description, false);
-        LinkedHashSet<String> ports = new LinkedHashSet<>();
-        for (String port : EbiCommandMetadata.PORT_ORDER) if (a.formats.contains(INPUT_FORMATS.get(port))) ports.add(port);
+        List<String> allowed = orderedInputPorts(a.formats);
         List<String> raw = a.formats.stream().filter(DOCUMENT_FORMATS::contains).sorted().toList();
-        if (!raw.isEmpty()) ports.add("EbiDocumentPortObject");
-        if (ports.isEmpty()) throw new IllegalArgumentException("No adapter for input " + a.name + ": " + a.formats);
-        List<String> allowed = List.copyOf(ports);
+        if (allowed.isEmpty()) throw new IllegalArgumentException("No adapter for input " + a.name + ": " + a.formats);
         return new EbiCommandMetadataParameter(originalType, allowed.get(0), description, true, allowed, raw);
+    }
+
+    /** Preserve Ebi's accepted-format order; put the generic document after typed ports. */
+    static List<String> orderedInputPorts(final Set<String> formats) {
+        LinkedHashSet<String> ports = new LinkedHashSet<>();
+        for (String format : formats)
+            for (Map.Entry<String, String> adapter : INPUT_FORMATS.entrySet())
+                if (format.equals(adapter.getValue())) ports.add(adapter.getKey());
+        if (formats.stream().anyMatch(DOCUMENT_FORMATS::contains)) ports.add("EbiDocumentPortObject");
+        return List.copyOf(ports);
     }
 
     private List<Argument> arguments(final String section) {

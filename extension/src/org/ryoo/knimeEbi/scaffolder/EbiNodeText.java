@@ -193,7 +193,8 @@ public final class EbiNodeText {
                 || text.contains("(log)") || text.contains("finite language")) return "Event log";
         if (text.contains("sampleable stochastic") || text.contains("log or model")) return "Log or stochastic model";
         if (parameter.supportedPortTypes.size() == 1) return portTypeName(parameter.portType);
-        if (parameter.supportedPortTypes.equals(List.of("ProcessTreePortObject", "EbiDocumentPortObject"))
+        if (parameter.supportedPortTypes.size() == 2 && parameter.supportedPortTypes.containsAll(
+                List.of("ProcessTreePortObject", "EbiDocumentPortObject"))
                 && !parameter.acceptedDocumentFormats.isEmpty()
                 && parameter.acceptedDocumentFormats.stream().allMatch(f -> f.equals(".ptree") || f.equals(".sptree")))
             return "Process tree";

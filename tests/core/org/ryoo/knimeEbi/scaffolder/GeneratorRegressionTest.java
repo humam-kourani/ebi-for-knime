@@ -350,6 +350,19 @@ public final class GeneratorRegressionTest {
             for (var m : commands)
                 if (!m.outputFormats.containsValue(".svg")) yes(!m.outputFormats.containsKey("ImagePortObject"));
         });
+        test("input defaults follow Ebi's format order, with typed ports before documents", () -> {
+            equal(List.of("PetriNetPortObject", "XLogPortObject", "ProcessTreePortObject"),
+                EbiManualMetadata.orderedInputPorts(new java.util.LinkedHashSet<>(List.of(".pnml", ".xes", ".ptml"))));
+            equal(List.of("DfgMsdPortObject", "XLogPortObject", "EbiDocumentPortObject"),
+                EbiManualMetadata.orderedInputPorts(new java.util.LinkedHashSet<>(List.of(".dfg", ".slang", ".xes"))));
+            equal(List.of("XLogPortObject", "EbiDocumentPortObject"),
+                EbiManualMetadata.orderedInputPorts(new java.util.LinkedHashSet<>(List.of(".slang", ".xes"))));
+        });
+        test("existing output defaults are unaffected by input ordering", () -> {
+            equal("DfgMsdPortObject", command("discover directly-follows-graph").output.portType);
+            equal("EbiDocumentPortObject", command("discover occurrence stochastic-process-tree").output.portType);
+            equal("ImagePortObject", command("visualise graph").output.portType);
+        });
         test("all generated commands have valid signatures and outputs", () -> {
             var names = new java.util.HashSet<String>();
             var classes = new java.util.HashSet<String>();
