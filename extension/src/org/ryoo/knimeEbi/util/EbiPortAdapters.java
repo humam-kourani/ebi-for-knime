@@ -25,7 +25,6 @@ public final class EbiPortAdapters {
             case "PetriNetPortObject" -> PetriNetPortObject.TYPE;
             case "ProcessTreePortObject" -> ProcessTreePortObject.TYPE;
             case "DfgMsdPortObject" -> DfgMsdPortObject.TYPE;
-            case "DFMPortObject" -> DFMPortObject.TYPE;
             case "BpmnPortObject" -> BpmnPortObject.TYPE;
             case "EbiDocumentPortObject" -> EbiDocumentPortObject.TYPE;
             case "BufferedDataTable" -> BufferedDataTable.TYPE;
@@ -43,7 +42,6 @@ public final class EbiPortAdapters {
         if (spec instanceof PetriNetPortObjectSpec) return "PetriNetPortObject";
         if (spec instanceof ProcessTreePortObjectSpec) return "ProcessTreePortObject";
         if (spec instanceof DfgMsdPortObjectSpec) return "DfgMsdPortObject";
-        if (spec instanceof DFMPortObjectSpec) return "DFMPortObject";
         if (spec instanceof BpmnPortObjectSpec) return "BpmnPortObject";
         if (spec instanceof EbiDocumentPortObjectSpec) return "EbiDocumentPortObject";
         if (spec instanceof DataTableSpec) return "BufferedDataTable";
@@ -55,7 +53,6 @@ public final class EbiPortAdapters {
         if (object instanceof PetriNetPortObject) return "PetriNetPortObject";
         if (object instanceof ProcessTreePortObject) return "ProcessTreePortObject";
         if (object instanceof DfgMsdPortObject) return "DfgMsdPortObject";
-        if (object instanceof DFMPortObject) return "DFMPortObject";
         if (object instanceof BpmnPortObject) return "BpmnPortObject";
         if (object instanceof EbiDocumentPortObject) return "EbiDocumentPortObject";
         if (object instanceof BufferedDataTable) return "BufferedDataTable";
@@ -67,7 +64,6 @@ public final class EbiPortAdapters {
             case "PetriNetPortObject" -> new PetriNetPortObjectSpec();
             case "ProcessTreePortObject" -> new ProcessTreePortObjectSpec();
             case "DfgMsdPortObject" -> new DfgMsdPortObjectSpec();
-            case "DFMPortObject" -> new DFMPortObjectSpec();
             case "BpmnPortObject" -> new BpmnPortObjectSpec();
             case "EbiDocumentPortObject" -> new EbiDocumentPortObjectSpec(format);
             case "BufferedDataTable" -> TableUtil.createOutputSpec(command, label, StringCell.TYPE);
@@ -85,7 +81,6 @@ public final class EbiPortAdapters {
         if (port instanceof PetriNetPortObject) return writePetriNet(port);
         if (port instanceof BpmnPortObject bpmn) return XmlText.utf8(bpmn.getBPMN(), "definitions");
         if (port instanceof DfgMsdPortObject) return DfgCodec.write(readDfgMsd(port));
-        if (port instanceof DFMPortObject) return writeDfm(port);
         throw new IllegalArgumentException("No Ebi serializer for " + port.getClass().getName());
     }
 
@@ -156,7 +151,6 @@ public final class EbiPortAdapters {
                 XLogPortObject result = new XLogPortObject(); Pm4Reflection.call(result, "setLog", logs.get(0)); yield result;
             }
             case "DfgMsdPortObject" -> toDfgMsd(DfgCodec.parse(text));
-            case "DFMPortObject" -> toDfm(DfgCodec.parse(text));
             default -> throw new IllegalArgumentException("No model adapter for " + portType);
         };
     }
@@ -211,49 +205,5 @@ public final class EbiPortAdapters {
         for (String name : graph.ends()) Pm4Reflection.call(Pm4Reflection.call(model, "getEndActivities"), "add", index.get(name), 1L);
         for (DfgCodec.Edge edge : graph.edges()) Pm4Reflection.call(Pm4Reflection.call(model, "getDirectlyFollowsGraph"), "addEdge", index.get(edge.source()), index.get(edge.target()), DfgCodec.exactCount(edge.weight()));
         DfgMsdPortObject result = new DfgMsdPortObject(); Pm4Reflection.call(result, "setDfgMsd", model); return result;
-    }
-    private static PortObject toDfm(DfgCodec.Graph graph) throws Exception {
-        Object model = Pm4Reflection.create("org.processmining.plugins.InductiveMiner.dfgOnly.DfgImpl");
-        Map<String, Object> activities = new LinkedHashMap<>(); int index = 0;
-        for (Map.Entry<String, String> entry : graph.activities().entrySet()) {
-            Object activity = Pm4Reflection.create("org.deckfour.xes.classification.XEventClass", entry.getKey(), index++);
-            long count = DfgCodec.exactCount(entry.getValue());
-            if (count > Integer.MAX_VALUE) throw new IllegalArgumentException("DFM activity counts exceed the PM4KNIME int range; choose Ebi document output.");
-            Pm4Reflection.call(activity, "setSize", (int)count); Pm4Reflection.call(model, "addActivity", activity); activities.put(entry.getKey(), activity);
-        }
-        for (String start : graph.starts()) Pm4Reflection.call(model, "addStartActivity", activities.get(start), 1L);
-        for (String end : graph.ends()) Pm4Reflection.call(model, "addEndActivity", activities.get(end), 1L);
-        for (DfgCodec.Edge edge : graph.edges()) Pm4Reflection.call(model, "addDirectlyFollowsEdge", activities.get(edge.source()), activities.get(edge.target()), DfgCodec.exactCount(edge.weight()));
-        DFMPortObject result = new DFMPortObject(); Pm4Reflection.call(result, "setDfm", model); return result;
-    }
-    private static String writeDfm(Object port) throws Exception {
-        Object model = Pm4Reflection.call(port, "getDfm");
-        if (model == null) throw new IllegalArgumentException("The directly-follows model port is empty.");
-        int[] indices = (int[])Pm4Reflection.call(model, "getActivityIndices");
-        Map<Integer, Integer> remap = new LinkedHashMap<>();
-        StringBuilder out = new StringBuilder("directly follows model\n")
-            .append(((Number)Pm4Reflection.call(model, "getNumberOfEmptyTraces")).longValue() > 0).append('\n').append(indices.length).append('\n');
-        for (int i = 0; i < indices.length; i++) {
-            remap.put(indices[i], i);
-            String name = (String)Pm4Reflection.call(Pm4Reflection.call(model, "getActivityOfIndex", indices[i]), "getId");
-            // The pinned Ebi line reader cannot safely represent comment-prefixed labels.
-            if (name.isBlank() || name.startsWith("#") || name.startsWith("$") || name.contains("\n") || name.contains("\r") || !name.equals(name.strip()))
-                throw new IllegalArgumentException("This DFM activity label cannot be safely encoded by the pinned Ebi line format. Use an event log or Ebi document: " + name);
-            out.append(name).append('\n');
-        }
-        for (String boundary : List.of("getStartActivityIndices", "getEndActivityIndices")) {
-            int[] boundaryIndices = (int[])Pm4Reflection.call(model, boundary); out.append(boundaryIndices.length).append('\n');
-            for (int i : boundaryIndices) out.append(remap.get(i)).append('\n');
-        }
-        List<String> edges = new ArrayList<>();
-        for (Object edge : iterable(Pm4Reflection.call(model, "getDirectlyFollowsEdges"))) {
-            long id = ((Number)edge).longValue();
-            if (((Number)Pm4Reflection.call(model, "getDirectlyFollowsEdgeCardinality", id)).longValue() <= 0) continue;
-            int source = ((Number)Pm4Reflection.call(model, "getDirectlyFollowsEdgeSourceIndex", id)).intValue();
-            int target = ((Number)Pm4Reflection.call(model, "getDirectlyFollowsEdgeTargetIndex", id)).intValue();
-            edges.add(remap.get(source) + ">" + remap.get(target));
-        }
-        out.append(edges.size()).append('\n'); for (String edge : edges) out.append(edge).append('\n');
-        return out.toString();
     }
 }

@@ -12,7 +12,6 @@ import java.util.Set;
 import org.junit.Test;
 import org.knime.core.node.port.PortObject;
 import org.pm4knime.portobject.BpmnPortObject;
-import org.pm4knime.portobject.DFMPortObject;
 import org.pm4knime.portobject.DfgMsdPortObject;
 import org.pm4knime.portobject.PetriNetPortObject;
 import org.pm4knime.portobject.ProcessTreePortObject;
@@ -136,15 +135,13 @@ public class Pm4AdaptersTest {
         assertEquals("Ä & 😀東", call(call(call(restored, "getTree"), "getRoot"), "getName"));
     }
 
-    @Test public void dfmProducesCorrectUnweightedBoundaryIndices() throws Exception {
-        PortObject port = EbiPortAdapters.deserialize("DFMPortObject", ".dfg", fixture("ebi-directly-follows.dfg"));
-        assertTrue(port instanceof DFMPortObject);
-        Object model = call(port, "getDfm");
-        for (Object activity : (Object[])call(model, "getActivities")) assertEquals(4, call(activity, "size"));
-        for (Object id : (Iterable<?>)call(model, "getDirectlyFollowsEdges"))
-            assertEquals(4L, model.getClass().getMethod("getDirectlyFollowsEdgeCardinality", long.class).invoke(model, id));
-        String nativeDfm = EbiPortAdapters.serialize(port);
-        assertEquals("directly follows model\nfalse\n2\nA\nB\n1\n0\n1\n1\n1\n0>1\n", nativeDfm);
+    @Test public void oldDfmPortIsNotAccepted() throws Exception {
+        try {
+            EbiPortAdapters.resolvePortType("DFMPortObject");
+            fail("Deprecated DFM port is still offered.");
+        } catch (IllegalArgumentException expected) {
+            assertTrue(expected.getMessage().contains("Unsupported port type"));
+        }
     }
 
     @Test public void fractionalGraphIsAvailableLosslesslyButNotSilentlyRounded() throws Exception {

@@ -168,7 +168,6 @@ public final class EbiNodeText {
             case "PetriNetPortObject" -> "Petri net";
             case "ProcessTreePortObject" -> "Process tree";
             case "DfgMsdPortObject" -> "Directly-follows graph";
-            case "DFMPortObject" -> "Directly-follows model";
             case "BpmnPortObject" -> "BPMN model";
             case "EbiDocumentPortObject" -> "Ebi document";
             case "BufferedDataTable" -> "Result table";

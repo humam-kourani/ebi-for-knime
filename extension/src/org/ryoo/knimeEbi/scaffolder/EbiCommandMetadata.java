@@ -22,7 +22,7 @@ public final class EbiCommandMetadata {
     private static final Pattern PANEL = Pattern.compile("create_input_panel\\s*\\(\\s*" + QUOTED);
     private static final Set<String> PRIMITIVES = Set.of("Integer", "String", "Byte", "Short", "Long", "Double", "Float", "Character", "Boolean", "BigFraction");
     public static final List<String> PORT_ORDER = List.of("XLogPortObject", "PetriNetPortObject",
-        "ProcessTreePortObject", "DfgMsdPortObject", "DFMPortObject", "BpmnPortObject", "EbiDocumentPortObject", "BufferedDataTable");
+        "ProcessTreePortObject", "DfgMsdPortObject", "BpmnPortObject", "EbiDocumentPortObject", "BufferedDataTable");
 
     public final String commandName;
     public final String shortDescription;
@@ -228,7 +228,6 @@ public final class EbiCommandMetadata {
             case "EfficientTree", "ProcessTree" -> "ProcessTreePortObject";
             case "StochasticLabelledPetriNetSimpleWeights", "StochasticLabelledPetriNet" -> "EbiDocumentPortObject";
             case "DirectlyFollowsGraph", "DfgMsd" -> "DfgMsdPortObject";
-            case "DirectlyFollowsModel" -> "DFMPortObject";
             case "BusinessProcessModelAndNotation", "BPMNDiagram" -> "BpmnPortObject";
             default -> throw new IllegalArgumentException("Unsupported Ebi Java object type: " + type);
         };
@@ -240,7 +239,7 @@ public final class EbiCommandMetadata {
         return switch (portType) {
             case "XLogPortObject" -> ".xes"; case "PetriNetPortObject" -> ".pnml";
             case "ProcessTreePortObject" -> ".ptml"; case "BpmnPortObject" -> ".bpmn";
-            case "DfgMsdPortObject" -> ".dfg"; case "DFMPortObject" -> ".dfm";
+            case "DfgMsdPortObject" -> ".dfg";
             case "EbiDocumentPortObject" -> ".slpn";
             case "BufferedDataTable" -> switch (type.toLowerCase(Locale.ROOT)) {
                 case "fraction" -> ".frac"; case "boolean" -> ".bool"; case "containsroot_html" -> ".croot";

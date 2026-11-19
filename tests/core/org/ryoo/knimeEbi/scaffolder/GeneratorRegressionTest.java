@@ -56,13 +56,14 @@ public final class GeneratorRegressionTest {
         });
         test("native manual enriches BPMN and DFG", () -> {
             var p = command("analyse-non-stochastic activities").inputs.get(0);
-            yes(p.supportedPortTypes.containsAll(List.of("BpmnPortObject", "DfgMsdPortObject", "DFMPortObject")));
+            yes(p.supportedPortTypes.containsAll(List.of("BpmnPortObject", "DfgMsdPortObject")));
+            yes(!p.supportedPortTypes.contains("DFMPortObject"));
         });
         test("inductive miner supports real process-tree output", () -> equal(".ptml", command("discover-non-stochastic inductive-miner").outputFormat("ProcessTreePortObject")));
         test("DFG has native typed and lossless outputs", () -> {
             var m = command("discover directly-follows-graph");
             equal("DfgMsdPortObject", m.output.portType); equal(".dfg", m.outputFormat("EbiDocumentPortObject"));
-            equal(".dfg", m.outputFormat("DFMPortObject")); yes(!m.outputFormats.containsValue(".dfm")); yes(!m.outputFormats.containsKey("ProcessTreePortObject"));
+            yes(!m.outputFormats.containsKey("DFMPortObject")); yes(!m.outputFormats.containsValue(".dfm")); yes(!m.outputFormats.containsKey("ProcessTreePortObject"));
         });
         test("stochastic tree default keeps weights", () -> {
             var m = command("discover occurrence stochastic-process-tree");

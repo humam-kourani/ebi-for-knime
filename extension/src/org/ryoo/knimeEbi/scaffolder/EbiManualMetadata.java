@@ -18,7 +18,7 @@ public final class EbiManualMetadata {
         ".slang", ".lang", ".dfa", ".lpn", ".ptree", ".powl", ".spolang", ".exs", ".sbpmn", ".sdfm", ".ali", ".sali", ".svg");
     private static final Map<String, String> INPUT_FORMATS = Map.of(
         "XLogPortObject", ".xes", "PetriNetPortObject", ".pnml", "ProcessTreePortObject", ".ptml",
-        "DfgMsdPortObject", ".dfg", "DFMPortObject", ".dfm", "BpmnPortObject", ".bpmn");
+        "DfgMsdPortObject", ".dfg", "BpmnPortObject", ".bpmn");
     private final Map<String, String> sections = new LinkedHashMap<>();
 
     public EbiManualMetadata(final String manual) {
@@ -167,16 +167,11 @@ public final class EbiManualMetadata {
             if (DOCUMENT_FORMATS.contains(nativeFormat) && (nativeType.contains("stochastic") || nativeType.contains("automaton")))
                 outputs.put("EbiDocumentPortObject", nativeFormat);
             if (nativeType.contains("process tree") && exporters.contains(".ptml")) outputs.put("ProcessTreePortObject", ".ptml");
-            if (nativeType.equals("directly follows graph") && exporters.contains(".dfg")) {
+            if (nativeType.equals("directly follows graph") && exporters.contains(".dfg"))
                 outputs.put("DfgMsdPortObject", ".dfg");
-                outputs.put("DFMPortObject", ".dfg");
-            }
             if (nativeType.contains("event log") && exporters.contains(".xes")) outputs.put("XLogPortObject", ".xes");
             for (String port : EbiCommandMetadata.PORT_ORDER) {
                 String extension = INPUT_FORMATS.get(port);
-                // The pinned Ebi .dfm exporter has a confirmed end-activity bitmap defect.
-                // Do not expose it as a typed output; .dfg is the faithful graph representation.
-                if (port.equals("DFMPortObject")) continue;
                 if (extension != null && exporters.contains(extension)) outputs.putIfAbsent(port, extension);
             }
             if (DOCUMENT_FORMATS.contains(nativeFormat) && !nativeFormat.equals(".dfm")) outputs.putIfAbsent("EbiDocumentPortObject", nativeFormat);
