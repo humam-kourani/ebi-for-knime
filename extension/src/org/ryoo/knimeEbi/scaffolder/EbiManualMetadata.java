@@ -170,6 +170,7 @@ public final class EbiManualMetadata {
             if (nativeType.equals("directly follows graph") && exporters.contains(".dfg"))
                 outputs.put("DfgMsdPortObject", ".dfg");
             if (nativeType.contains("event log") && exporters.contains(".xes")) outputs.put("XLogPortObject", ".xes");
+            if (exporters.contains(".svg")) outputs.put("ImagePortObject", ".svg");
             for (String port : EbiCommandMetadata.PORT_ORDER) {
                 String extension = INPUT_FORMATS.get(port);
                 if (extension != null && exporters.contains(extension)) outputs.putIfAbsent(port, extension);

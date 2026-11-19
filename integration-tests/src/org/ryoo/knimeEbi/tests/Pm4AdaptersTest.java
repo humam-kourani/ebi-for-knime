@@ -11,6 +11,9 @@ import java.util.Map;
 import java.util.Set;
 import org.junit.Test;
 import org.knime.core.node.port.PortObject;
+import org.knime.core.node.port.image.ImagePortObject;
+import org.knime.core.node.port.image.ImagePortObjectSpec;
+import org.knime.base.data.xml.SvgCell;
 import org.pm4knime.portobject.BpmnPortObject;
 import org.pm4knime.portobject.DfgMsdPortObject;
 import org.pm4knime.portobject.PetriNetPortObject;
@@ -165,6 +168,29 @@ public class Pm4AdaptersTest {
         PortObject port = EbiPortAdapters.deserialize("BpmnPortObject", ".bpmn", bpmn);
         assertTrue(port instanceof BpmnPortObject);
         assertEquals(bpmn, EbiPortAdapters.serialize(port));
+    }
+
+    @Test public void svgOutputCreatesARealKnimeImagePort() throws Exception {
+        String svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"64\" height=\"32\">"
+            + "<rect width=\"64\" height=\"32\"/></svg>";
+        PortObject result = EbiPortAdapters.deserialize("ImagePortObject", ".svg", svg);
+        assertTrue(result instanceof ImagePortObject);
+        assertEquals("ImagePortObject", EbiPortAdapters.typeName(result));
+        assertTrue(result.getSpec() instanceof ImagePortObjectSpec);
+        assertEquals(SvgCell.TYPE, ((ImagePortObjectSpec)result.getSpec()).getDataType());
+        assertTrue(((ImagePortObject)result).toDataCell() instanceof SvgCell);
+        try {
+            EbiPortAdapters.deserialize("ImagePortObject", ".svg", "<ptml/>");
+            fail("Accepted a non-SVG image.");
+        } catch (IllegalArgumentException expected) {
+            assertTrue(expected.getMessage().contains("Expected <svg>"));
+        }
+        try {
+            EbiPortAdapters.deserialize("ImagePortObject", ".pdf", svg);
+            fail("Accepted a non-SVG image format.");
+        } catch (IllegalArgumentException expected) {
+            assertTrue(expected.getMessage().contains("SVG exporter"));
+        }
     }
 
     @Test public void nativeSnfaSyntaxRepairMakesInitialStateNumeric() throws Exception {

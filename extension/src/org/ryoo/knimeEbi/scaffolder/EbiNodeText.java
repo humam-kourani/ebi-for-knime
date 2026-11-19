@@ -169,6 +169,7 @@ public final class EbiNodeText {
             case "ProcessTreePortObject" -> "Process tree";
             case "DfgMsdPortObject" -> "Directly-follows graph";
             case "BpmnPortObject" -> "BPMN model";
+            case "ImagePortObject" -> "SVG image";
             case "EbiDocumentPortObject" -> "Ebi document";
             case "BufferedDataTable" -> "Result table";
             default -> throw new IllegalArgumentException("Unknown port type label: " + type);

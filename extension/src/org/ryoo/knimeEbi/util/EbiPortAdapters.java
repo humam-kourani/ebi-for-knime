@@ -6,12 +6,16 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.knime.base.data.xml.SvgCell;
+import org.knime.base.data.xml.SvgImageContent;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.def.StringCell;
 import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
+import org.knime.core.node.port.image.ImagePortObject;
+import org.knime.core.node.port.image.ImagePortObjectSpec;
 import org.pm4knime.portobject.*;
 import org.ryoo.knimeEbi.port.EbiDocumentPortObject;
 import org.ryoo.knimeEbi.port.EbiDocumentPortObjectSpec;
@@ -26,6 +30,7 @@ public final class EbiPortAdapters {
             case "ProcessTreePortObject" -> ProcessTreePortObject.TYPE;
             case "DfgMsdPortObject" -> DfgMsdPortObject.TYPE;
             case "BpmnPortObject" -> BpmnPortObject.TYPE;
+            case "ImagePortObject" -> ImagePortObject.TYPE;
             case "EbiDocumentPortObject" -> EbiDocumentPortObject.TYPE;
             case "BufferedDataTable" -> BufferedDataTable.TYPE;
             default -> throw new IllegalArgumentException("Unsupported port type: " + name);
@@ -43,6 +48,7 @@ public final class EbiPortAdapters {
         if (spec instanceof ProcessTreePortObjectSpec) return "ProcessTreePortObject";
         if (spec instanceof DfgMsdPortObjectSpec) return "DfgMsdPortObject";
         if (spec instanceof BpmnPortObjectSpec) return "BpmnPortObject";
+        if (spec instanceof ImagePortObjectSpec) return "ImagePortObject";
         if (spec instanceof EbiDocumentPortObjectSpec) return "EbiDocumentPortObject";
         if (spec instanceof DataTableSpec) return "BufferedDataTable";
         throw new IllegalArgumentException("Unsupported Ebi input specification: " + spec.getClass().getName());
@@ -54,6 +60,7 @@ public final class EbiPortAdapters {
         if (object instanceof ProcessTreePortObject) return "ProcessTreePortObject";
         if (object instanceof DfgMsdPortObject) return "DfgMsdPortObject";
         if (object instanceof BpmnPortObject) return "BpmnPortObject";
+        if (object instanceof ImagePortObject) return "ImagePortObject";
         if (object instanceof EbiDocumentPortObject) return "EbiDocumentPortObject";
         if (object instanceof BufferedDataTable) return "BufferedDataTable";
         throw new IllegalArgumentException("Unsupported Ebi input data: " + object.getClass().getName());
@@ -65,6 +72,7 @@ public final class EbiPortAdapters {
             case "ProcessTreePortObject" -> new ProcessTreePortObjectSpec();
             case "DfgMsdPortObject" -> new DfgMsdPortObjectSpec();
             case "BpmnPortObject" -> new BpmnPortObjectSpec();
+            case "ImagePortObject" -> new ImagePortObjectSpec(SvgCell.TYPE);
             case "EbiDocumentPortObject" -> new EbiDocumentPortObjectSpec(format);
             case "BufferedDataTable" -> TableUtil.createOutputSpec(command, label, StringCell.TYPE);
             default -> throw new IllegalArgumentException("Unsupported Ebi output: " + portType);
@@ -127,6 +135,11 @@ public final class EbiPortAdapters {
     public static PortObject deserialize(final String portType, final String format, final String text) throws Exception {
         if (text == null || text.isBlank()) throw new IllegalArgumentException("Ebi returned no model data.");
         return switch (portType) {
+            case "ImagePortObject" -> {
+                if (!".svg".equals(format)) throw new IllegalArgumentException("KNIME image output requires an SVG exporter.");
+                String svg = XmlText.utf8(text, "svg");
+                yield new ImagePortObject(new SvgImageContent(utf8(svg)), new ImagePortObjectSpec(SvgCell.TYPE));
+            }
             case "EbiDocumentPortObject" -> new EbiDocumentPortObject(format, EbiNativeOutputCompatibility.normalize(format, text));
             case "BpmnPortObject" -> new BpmnPortObject(XmlText.utf8(text, "definitions"));
             case "ProcessTreePortObject" -> {

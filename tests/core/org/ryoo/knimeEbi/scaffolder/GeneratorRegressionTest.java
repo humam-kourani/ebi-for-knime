@@ -338,6 +338,18 @@ public final class GeneratorRegressionTest {
             equal(callable, commands.size());
             equal(callable, catalog.size());
         });
+        test("SVG exporters expose a KNIME image and an Ebi document", () -> {
+            var m = catalog.get("Ebi visualise graph");
+            yes(m != null);
+            equal(".svg", m.outputFormat("ImagePortObject"));
+            equal(".svg", m.outputFormat("EbiDocumentPortObject"));
+            yes(m.output.supportedPortTypes.containsAll(List.of("ImagePortObject", "EbiDocumentPortObject")));
+            equal("ImagePortObject", m.output.portType);
+        });
+        test("non-SVG commands do not advertise image output", () -> {
+            for (var m : commands)
+                if (!m.outputFormats.containsValue(".svg")) yes(!m.outputFormats.containsKey("ImagePortObject"));
+        });
         test("all generated commands have valid signatures and outputs", () -> {
             var names = new java.util.HashSet<String>();
             var classes = new java.util.HashSet<String>();

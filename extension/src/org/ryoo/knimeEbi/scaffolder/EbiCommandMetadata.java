@@ -22,7 +22,7 @@ public final class EbiCommandMetadata {
     private static final Pattern PANEL = Pattern.compile("create_input_panel\\s*\\(\\s*" + QUOTED);
     private static final Set<String> PRIMITIVES = Set.of("Integer", "String", "Byte", "Short", "Long", "Double", "Float", "Character", "Boolean", "BigFraction");
     public static final List<String> PORT_ORDER = List.of("XLogPortObject", "PetriNetPortObject",
-        "ProcessTreePortObject", "DfgMsdPortObject", "BpmnPortObject", "EbiDocumentPortObject", "BufferedDataTable");
+        "ProcessTreePortObject", "DfgMsdPortObject", "BpmnPortObject", "ImagePortObject", "EbiDocumentPortObject", "BufferedDataTable");
 
     public final String commandName;
     public final String shortDescription;
