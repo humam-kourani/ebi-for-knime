@@ -9,12 +9,16 @@ from pathlib import Path
 import re
 import shutil
 import zipfile
+from verify_update_site import verify
 
 ROOT = Path(__file__).resolve().parents[1]
 
 def collect(commit: str):
     site = ROOT/'update-site/target/knime-ebi-update-site.zip'
     if not site.is_file(): raise RuntimeError('Tycho p2 ZIP not found; run mvn clean verify')
+    version = re.search(r'<version>(\d+\.\d+\.\d+)-SNAPSHOT</version>',
+                        (ROOT/'pom.xml').read_text()).group(1)
+    verify(site, version)
     with zipfile.ZipFile(site) as archive:
         names = set(archive.namelist())
         if not ({'content.jar','content.xml','content.xml.xz'} & names):
