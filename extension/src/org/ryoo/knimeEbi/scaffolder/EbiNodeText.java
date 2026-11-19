@@ -62,7 +62,7 @@ public final class EbiNodeText {
             result.append(paragraph("Accepted Ebi document formats: " + String.join(", ", parameter.acceptedDocumentFormats) + "."));
         }
         if (parameter.supportedPortTypes.contains("BufferedDataTable"))
-            result.append(paragraph("CSV table input: first column is the trace ID, second the activity; at least two event rows."));
+            result.append(paragraph("CSV table input is sent to Ebi unchanged, including all columns and their order. Ebi reads column 1 as case ID (usually case:concept:name) and column 2 as activity (usually concept:name); for event-attribute imports, column 3 may be the resource (org:resource) and column 4 the timestamp (time:timestamp). Unexpected headers produce warnings, not configuration errors. At least two event rows are required."));
         result.append(paragraph("Required input. Select exactly one supported representation."));
         return result.toString();
     }

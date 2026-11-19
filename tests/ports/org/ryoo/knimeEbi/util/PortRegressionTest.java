@@ -88,6 +88,79 @@ public final class PortRegressionTest {
         test("integral rational DFG count accepted", () -> equal(3L, DfgCodec.exactCount("6/2")));
         test("DFG count overflow rejected", () -> fails(() -> DfgCodec.exactCount("9223372036854775808")));
         test("DFG zero denominator rejected", () -> fails(() -> DfgCodec.exactCount("1/0")));
+        test("CSV standard positional headers produce no warning", () -> {
+            equal(List.of(), EbiCsv.headerWarnings(List.of("case:concept:name", "concept:name")));
+            equal(List.of(), EbiCsv.headerWarnings(List.of(
+                "case:concept:name", "concept:name", "org:resource", "time:timestamp", "cost")));
+        });
+        test("CSV nonstandard first and second columns warn without rejecting", () -> {
+            var warnings = EbiCsv.headerWarnings(List.of("concept:name", "case:concept:name"));
+            equal(2, warnings.size());
+            if (!warnings.get(0).contains("column 1 ('concept:name') as case ID")
+                    || !warnings.get(1).contains("column 2 ('case:concept:name') as activity"))
+                throw new AssertionError(warnings);
+            equal(2, EbiCsv.headerWarnings(List.of("case", "activity")).size());
+        });
+        test("CSV optional resource and timestamp positions warn conditionally", () -> {
+            var warnings = EbiCsv.headerWarnings(List.of("case:concept:name", "concept:name", "cost", "operator"));
+            equal(2, warnings.size());
+            if (!warnings.get(0).contains("column 3 ('cost') as resource")
+                    || !warnings.get(1).contains("column 4 ('operator') as timestamp")
+                    || !warnings.get(0).contains("event-attribute CSV imports"))
+                throw new AssertionError(warnings);
+        });
+        test("CSV writer retains every column in original order with Unicode and quoting", () -> {
+            var writer = new EbiCsv.Writer(List.of("case:concept:name", "concept:name", "cost", "org:resource"));
+            writer.append(List.of("case,1", "A\"東", "100", "Alice"));
+            writer.append(List.of("case,1", "B", "200", "Bob"));
+            equal("\"case:concept:name\",\"concept:name\",\"cost\",\"org:resource\"\n"
+                + "\"case,1\",\"A\"\"東\",\"100\",\"Alice\"\n"
+                + "\"case,1\",\"B\",\"200\",\"Bob\"\n", writer.finish());
+        });
+        test("DFG boundary frequencies reconstructed across branches", () -> {
+            var graph = new DfgCodec.Graph(Map.of("A", "3", "B", "2", "C", "3"),
+                List.of(new DfgCodec.Edge("A", "B", "2"), new DfgCodec.Edge("A", "C", "1"),
+                    new DfgCodec.Edge("B", "C", "2")), List.of("A"), List.of("C"));
+            var boundaries = DfgCodec.boundaryCounts(graph);
+            equal(Map.of("A", 3L), boundaries.starts());
+            equal(Map.of("C", 3L), boundaries.ends());
+        });
+        test("DFG boundary frequencies support loops and multiple boundaries", () -> {
+            var graph = new DfgCodec.Graph(Map.of("A", "4", "B", "3"),
+                List.of(new DfgCodec.Edge("A", "A", "1"), new DfgCodec.Edge("A", "B", "2"),
+                    new DfgCodec.Edge("B", "A", "1")), List.of("A", "B"), List.of("A", "B"));
+            var boundaries = DfgCodec.boundaryCounts(graph);
+            equal(Map.of("A", 2L, "B", 1L), boundaries.starts());
+            equal(Map.of("A", 1L, "B", 2L), boundaries.ends());
+        });
+        test("DFG single-activity self-loop reconstructs both boundaries", () -> {
+            var graph = new DfgCodec.Graph(Map.of("A", "6"),
+                List.of(new DfgCodec.Edge("A", "A", "4")), List.of("A"), List.of("A"));
+            var boundaries = DfgCodec.boundaryCounts(graph);
+            equal(Map.of("A", 2L), boundaries.starts());
+            equal(Map.of("A", 2L), boundaries.ends());
+        });
+        test("DFG self-loop overcount is rejected", () -> fails(() -> DfgCodec.boundaryCounts(
+            new DfgCodec.Graph(Map.of("A", "3"),
+                List.of(new DfgCodec.Edge("A", "A", "4")), List.of("A"), List.of("A")))));
+        test("DFG integral fractions reconstruct exact boundaries", () -> {
+            var graph = new DfgCodec.Graph(Map.of("A", "6/2", "B", "6/2"),
+                List.of(new DfgCodec.Edge("A", "B", "6/2")), List.of("A"), List.of("B"));
+            equal(Map.of("A", 3L), DfgCodec.boundaryCounts(graph).starts());
+        });
+        test("DFG missing start activity rejected", () -> fails(() -> DfgCodec.boundaryCounts(
+            new DfgCodec.Graph(Map.of("A", "2", "B", "2"),
+                List.of(new DfgCodec.Edge("A", "B", "2")), List.of(), List.of("B")))));
+        test("DFG spurious end activity rejected", () -> fails(() -> DfgCodec.boundaryCounts(
+            new DfgCodec.Graph(Map.of("A", "2", "B", "2"),
+                List.of(new DfgCodec.Edge("A", "B", "2")), List.of("A"), List.of("A", "B")))));
+        test("DFG too many incoming edges rejected", () -> fails(() -> DfgCodec.boundaryCounts(
+            new DfgCodec.Graph(Map.of("A", "2", "B", "1"),
+                List.of(new DfgCodec.Edge("A", "B", "2")), List.of("A"), List.of("B")))));
+        test("DFG aggregate edge weights do not wrap long", () -> fails(() -> DfgCodec.boundaryCounts(
+            new DfgCodec.Graph(Map.of("A", "9223372036854775807", "B", "9223372036854775807", "C", "9223372036854775807"),
+                List.of(new DfgCodec.Edge("A", "C", "9223372036854775807"),
+                    new DfgCodec.Edge("B", "C", "9223372036854775807")), List.of("A", "B"), List.of("C")))));
         test("DFG unknown edge endpoint rejected", () -> fails(() -> DfgCodec.parse(actualDfg.replace("[[\"A\",\"B\"]", "[[\"A\",\"C\"]"))));
         test("DFG duplicate JSON key rejected", () -> fails(() -> DfgCodec.parse(actualDfg.replace("\"A\":\"2\"", "\"A\":\"2\",\"A\":\"9\""))));
         test("DFG unexpected trailing output rejected", () -> fails(() -> DfgCodec.parse(actualDfg + " extra")));

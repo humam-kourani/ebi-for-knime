@@ -54,6 +54,45 @@ public final class DfgCodec {
         catch (ArithmeticException ex) { throw new IllegalArgumentException("DFG weight exceeds the PM4KNIME long-count range. Select Ebi document output.", ex); }
     }
 
+    /** Reconstruct the boundary counts that Ebi infers while importing a .dfg file. */
+    public record BoundaryCounts(Map<String, Long> starts, Map<String, Long> ends) { }
+
+    public static BoundaryCounts boundaryCounts(final Graph graph) {
+        Map<String, BigInteger> incoming = new LinkedHashMap<>();
+        Map<String, BigInteger> outgoing = new LinkedHashMap<>();
+        for (String activity : graph.activities().keySet()) {
+            incoming.put(activity, BigInteger.ZERO);
+            outgoing.put(activity, BigInteger.ZERO);
+        }
+        for (Edge edge : graph.edges()) {
+            // A self-loop contributes once to each of its activity's incoming and outgoing totals.
+            BigInteger weight = BigInteger.valueOf(exactCount(edge.weight()));
+            incoming.merge(edge.target(), weight, BigInteger::add);
+            outgoing.merge(edge.source(), weight, BigInteger::add);
+        }
+
+        Set<String> declaredStarts = Set.copyOf(graph.starts());
+        Set<String> declaredEnds = Set.copyOf(graph.ends());
+        Map<String, Long> starts = new LinkedHashMap<>();
+        Map<String, Long> ends = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : graph.activities().entrySet()) {
+            String activity = entry.getKey();
+            BigInteger count = BigInteger.valueOf(exactCount(entry.getValue()));
+            BigInteger startCount = count.subtract(incoming.get(activity));
+            BigInteger endCount = count.subtract(outgoing.get(activity));
+            if (startCount.signum() < 0 || endCount.signum() < 0)
+                throw new IllegalArgumentException("DFG activity '" + activity
+                    + "' has more incoming or outgoing edge occurrences than activity occurrences.");
+            if ((startCount.signum() > 0) != declaredStarts.contains(activity))
+                throw new IllegalArgumentException("DFG start activities disagree with the reconstructed start count for '" + activity + "'.");
+            if ((endCount.signum() > 0) != declaredEnds.contains(activity))
+                throw new IllegalArgumentException("DFG end activities disagree with the reconstructed end count for '" + activity + "'.");
+            if (startCount.signum() > 0) starts.put(activity, startCount.longValueExact());
+            if (endCount.signum() > 0) ends.put(activity, endCount.longValueExact());
+        }
+        return new BoundaryCounts(Map.copyOf(starts), Map.copyOf(ends));
+    }
+
     public static Graph parse(final String text) {
         Object value = new Parser(text).parse();
         if (!(value instanceof Map<?, ?> map)) throw new IllegalArgumentException("Expected an Ebi .dfg JSON object.");

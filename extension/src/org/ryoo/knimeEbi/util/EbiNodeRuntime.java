@@ -77,8 +77,8 @@ public final class EbiNodeRuntime {
                 EbiPortContract.validateDocumentFormat(parameter.acceptedDocumentFormats, document.getFormat(), portIndex);
             input.getExecutionContext().checkCanceled();
             arguments[i] = EbiPortAdapters.serialize(port);
-            if (inputTypes.get(portIndex).equals("DfgMsdPortObject"))
-                warnings.add("DFG input passes activity/edge counts and start/end membership; minimum-self-distance and concurrency annotations are not consumed by Ebi.");
+            if (port instanceof org.knime.core.node.BufferedDataTable table)
+                warnings.addAll(EbiPortAdapters.csvHeaderWarnings(table.getDataTableSpec()));
             portIndex++;
         }
         String format = metadata.outputFormat(outputType);
@@ -99,8 +99,6 @@ public final class EbiNodeRuntime {
             String normalized = EbiNativeOutputCompatibility.normalize(format, result);
             if (!normalized.equals(result)) warnings.add("Repaired the verified Ebi SNFA initial-state export syntax; state and probabilities are unchanged.");
             output.setOutData(0, EbiPortAdapters.deserialize(outputType, format, normalized));
-            if (outputType.equals("DfgMsdPortObject"))
-                warnings.add("Ebi returns start/end membership, not boundary counts. These are represented with unit counts; no minimum-self-distance annotations are inferred.");
             if (!outputType.equals("EbiDocumentPortObject") && metadata.outputFormats.containsKey("EbiDocumentPortObject")) {
                 String nativeFormat = metadata.outputFormats.get("EbiDocumentPortObject");
                 if (nativeFormat.equals(".slpn") || nativeFormat.equals(".sptree") || nativeFormat.equals(".sdfa") || nativeFormat.equals(".snfa"))

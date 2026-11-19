@@ -130,6 +130,83 @@ public class Pm4AdaptersTest {
         assertEquals(expected, DfgCodec.parse(EbiPortAdapters.serialize(port)));
     }
 
+    @Test public void directlyFollowsReconstructsAndRoundTripsNonUnitBoundaryCounts() throws Exception {
+        String dfg = "{\"activities\":{\"A\":\"3\",\"B\":\"2\",\"C\":\"3\"},"
+            + "\"directly_follows_relations\":[[[\"A\",\"B\"],\"2\"],[[\"A\",\"C\"],\"1\"],[[\"B\",\"C\"],\"2\"]],"
+            + "\"start_activities\":[\"A\"],\"end_activities\":[\"C\"]}";
+        PortObject port = EbiPortAdapters.deserialize("DfgMsdPortObject", ".dfg", dfg);
+        Object model = call(port, "getDfgMsd");
+        String[] labels = (String[])call(model, "getAllActivities");
+        int a = java.util.Arrays.asList(labels).indexOf("A");
+        int c = java.util.Arrays.asList(labels).indexOf("C");
+        Object starts = call(model, "getStartActivities");
+        Object ends = call(model, "getEndActivities");
+        assertEquals(3L, ((Number)starts.getClass().getMethod("getCardinalityOf", int.class).invoke(starts, a)).longValue());
+        assertEquals(3L, ((Number)ends.getClass().getMethod("getCardinalityOf", int.class).invoke(ends, c)).longValue());
+        var restored = DfgCodec.parse(EbiPortAdapters.serialize(port));
+        assertEquals(Map.of("A", "3", "B", "2", "C", "3"), restored.activities());
+        assertEquals(Set.of(new DfgCodec.Edge("A", "B", "2"), new DfgCodec.Edge("A", "C", "1"),
+            new DfgCodec.Edge("B", "C", "2")), Set.copyOf(restored.edges()));
+        assertEquals(Map.of("A", 3L), DfgCodec.boundaryCounts(restored).starts());
+        assertEquals(Map.of("C", 3L), DfgCodec.boundaryCounts(restored).ends());
+    }
+
+    @Test public void directlyFollowsSelfLoopsAndMixedBoundariesSurviveBothDirections() throws Exception {
+        String dfg = "{\"activities\":{\"A\":\"4\",\"B\":\"3\"},"
+            + "\"directly_follows_relations\":[[[\"A\",\"A\"],\"1\"],[[\"A\",\"B\"],\"2\"],[[\"B\",\"A\"],\"1\"]],"
+            + "\"start_activities\":[\"A\",\"B\"],\"end_activities\":[\"A\",\"B\"]}";
+        PortObject port = EbiPortAdapters.deserialize("DfgMsdPortObject", ".dfg", dfg);
+        Object model = call(port, "getDfgMsd");
+        String[] labels = (String[])call(model, "getAllActivities");
+        int a = java.util.Arrays.asList(labels).indexOf("A");
+        int b = java.util.Arrays.asList(labels).indexOf("B");
+        Object starts = call(model, "getStartActivities");
+        Object ends = call(model, "getEndActivities");
+        var startCount = starts.getClass().getMethod("getCardinalityOf", int.class);
+        var endCount = ends.getClass().getMethod("getCardinalityOf", int.class);
+        assertEquals(2L, ((Number)startCount.invoke(starts, a)).longValue());
+        assertEquals(1L, ((Number)startCount.invoke(starts, b)).longValue());
+        assertEquals(1L, ((Number)endCount.invoke(ends, a)).longValue());
+        assertEquals(2L, ((Number)endCount.invoke(ends, b)).longValue());
+        DfgCodec.Graph roundTrip = DfgCodec.parse(EbiPortAdapters.serialize(port));
+        assertEquals(Map.of("A", "4", "B", "3"), roundTrip.activities());
+        assertEquals(Set.of(new DfgCodec.Edge("A", "A", "1"), new DfgCodec.Edge("A", "B", "2"),
+            new DfgCodec.Edge("B", "A", "1")), Set.copyOf(roundTrip.edges()));
+        assertEquals(Map.of("A", 2L, "B", 1L), DfgCodec.boundaryCounts(roundTrip).starts());
+        assertEquals(Map.of("A", 1L, "B", 2L), DfgCodec.boundaryCounts(roundTrip).ends());
+    }
+
+    @Test public void directlyFollowsRejectsInconsistentPm4KnimeBoundaryCountsBeforeEbi() throws Exception {
+        PortObject port = EbiPortAdapters.deserialize("DfgMsdPortObject", ".dfg", fixture("ebi-directly-follows.dfg"));
+        Object model = call(port, "getDfgMsd");
+        int a = java.util.Arrays.asList((String[])call(model, "getAllActivities")).indexOf("A");
+        Object starts = call(model, "getStartActivities");
+        starts.getClass().getMethod("add", int.class, long.class).invoke(starts, a, 1L);
+        try {
+            EbiPortAdapters.serialize(port);
+            fail("Inconsistent boundary count must not be exported to Ebi.");
+        } catch (IllegalArgumentException expected) {
+            assertTrue(expected.getMessage().contains("start count"));
+        }
+    }
+
+    @Test public void csvSpecWarnsAboutPositionalDefaultsWithoutRejectingColumns() throws Exception {
+        var unexpected = new org.knime.core.data.DataTableSpec(
+            new org.knime.core.data.DataColumnSpecCreator("cost", org.knime.core.data.def.StringCell.TYPE).createSpec(),
+            new org.knime.core.data.DataColumnSpecCreator("concept:name", org.knime.core.data.def.StringCell.TYPE).createSpec(),
+            new org.knime.core.data.DataColumnSpecCreator("case:concept:name", org.knime.core.data.def.StringCell.TYPE).createSpec());
+        List<String> warnings = EbiPortAdapters.csvHeaderWarnings(unexpected);
+        assertEquals(2, warnings.size());
+        assertTrue(warnings.get(0).contains("column 1 ('cost') as case ID"));
+        assertTrue(warnings.get(1).contains("column 3 ('case:concept:name') as resource"));
+        var standard = new org.knime.core.data.DataTableSpec(
+            new org.knime.core.data.DataColumnSpecCreator("case:concept:name", org.knime.core.data.def.StringCell.TYPE).createSpec(),
+            new org.knime.core.data.DataColumnSpecCreator("concept:name", org.knime.core.data.def.StringCell.TYPE).createSpec(),
+            new org.knime.core.data.DataColumnSpecCreator("org:resource", org.knime.core.data.def.StringCell.TYPE).createSpec(),
+            new org.knime.core.data.DataColumnSpecCreator("time:timestamp", org.knime.core.data.def.StringCell.TYPE).createSpec());
+        assertTrue(EbiPortAdapters.csvHeaderWarnings(standard).isEmpty());
+    }
+
     @Test public void processTreeRetainsSupplementaryUnicodeThroughPromExporter() throws Exception {
         String xml = "<ptml><processTree root=\"a\"><manualTask id=\"a\" name=\"Ä &amp; 😀東\"/></processTree></ptml>";
         PortObject port = EbiPortAdapters.deserialize("ProcessTreePortObject", ".ptml", xml);

@@ -94,6 +94,13 @@ public final class EbiPortAdapters {
         throw new IllegalArgumentException("No Ebi serializer for " + port.getClass().getName());
     }
 
+    /** Warn about Ebi's positional CSV defaults without restricting or rewriting the table. */
+    public static List<String> csvHeaderWarnings(final DataTableSpec spec) {
+        List<String> headers = new ArrayList<>(spec.getNumColumns());
+        for (int i = 0; i < spec.getNumColumns(); i++) headers.add(spec.getColumnSpec(i).getName());
+        return EbiCsv.headerWarnings(headers);
+    }
+
     private static String writeCsv(final BufferedDataTable table) {
         DataTableSpec spec = table.getDataTableSpec();
         List<String> header = new ArrayList<>();
@@ -210,12 +217,33 @@ public final class EbiPortAdapters {
             int target = ((Number)Pm4Reflection.call(edges, "getEdgeTarget", id)).intValue();
             resultEdges.add(new DfgCodec.Edge(labels[source], labels[target], String.valueOf(weight)));
         }
-        return new DfgCodec.Graph(activities, resultEdges, boundaryLabels(model, "getStartActivities", labels), boundaryLabels(model, "getEndActivities", labels));
+        // Ebi's .dfg format has no explicit boundary frequencies: they are implied by
+        // activity counts minus incoming/outgoing edge counts, including self-loops.
+        DfgCodec.Graph graph = new DfgCodec.Graph(activities, resultEdges,
+            boundaryLabels(model, "getStartActivities", labels), boundaryLabels(model, "getEndActivities", labels));
+        DfgCodec.BoundaryCounts boundaries = DfgCodec.boundaryCounts(graph);
+        checkBoundaryCounts(model, "getStartActivities", labels, boundaries.starts());
+        checkBoundaryCounts(model, "getEndActivities", labels, boundaries.ends());
+        return graph;
     }
     private static List<String> boundaryLabels(Object model, String method, String[] labels) throws Exception {
         List<String> result = new ArrayList<>();
         for (Object index : iterable(Pm4Reflection.call(model, method))) result.add(labels[((Number)index).intValue()]);
         return result;
+    }
+    private static void checkBoundaryCounts(Object model, String method, String[] labels,
+            Map<String, Long> inferredCounts) throws Exception {
+        Object counts = Pm4Reflection.call(model, method);
+        for (int i = 0; i < labels.length; i++) {
+            long actual = ((Number)Pm4Reflection.call(counts, "getCardinalityOf", i)).longValue();
+            long inferred = inferredCounts.getOrDefault(labels[i], 0L);
+            if (actual != inferred) {
+                String boundary = method.equals("getStartActivities") ? "start" : "end";
+                throw new IllegalArgumentException("PM4KNIME DFG " + boundary + " count for activity '" + labels[i]
+                    + "' is " + actual + ", but Ebi would infer " + inferred
+                    + " from activity and edge frequencies. Supply a consistent DFG or the original event log.");
+            }
+        }
     }
     private static Iterable<?> iterable(Object object) {
         if (!(object instanceof Iterable<?> result)) throw new IllegalArgumentException("PM4KNIME object is not iterable.");
@@ -223,6 +251,7 @@ public final class EbiPortAdapters {
     }
 
     private static PortObject toDfgMsd(DfgCodec.Graph graph) throws Exception {
+        DfgCodec.BoundaryCounts boundaries = DfgCodec.boundaryCounts(graph);
         String[] labels = graph.activities().keySet().toArray(String[]::new);
         Object model = Pm4Reflection.create("org.processmining.plugins.inductiveminer2.withoutlog.dfgmsd.DfgMsdImpl", (Object)labels);
         Map<String, Integer> index = new LinkedHashMap<>();
@@ -233,8 +262,8 @@ public final class EbiPortAdapters {
             if (count == 0) throw new IllegalArgumentException("The PM4KNIME Directly-Follows Graph port cannot retain a zero-count activity. Select Ebi document output.");
             Pm4Reflection.call(counts, "add", i, count);
         }
-        for (String name : graph.starts()) Pm4Reflection.call(Pm4Reflection.call(model, "getStartActivities"), "add", index.get(name), 1L);
-        for (String name : graph.ends()) Pm4Reflection.call(Pm4Reflection.call(model, "getEndActivities"), "add", index.get(name), 1L);
+        for (String name : graph.starts()) Pm4Reflection.call(Pm4Reflection.call(model, "getStartActivities"), "add", index.get(name), boundaries.starts().get(name));
+        for (String name : graph.ends()) Pm4Reflection.call(Pm4Reflection.call(model, "getEndActivities"), "add", index.get(name), boundaries.ends().get(name));
         for (DfgCodec.Edge edge : graph.edges()) Pm4Reflection.call(Pm4Reflection.call(model, "getDirectlyFollowsGraph"), "addEdge", index.get(edge.source()), index.get(edge.target()), DfgCodec.exactCount(edge.weight()));
         DfgMsdPortObject result = new DfgMsdPortObject(); Pm4Reflection.call(result, "setDfgMsd", model); return result;
     }
