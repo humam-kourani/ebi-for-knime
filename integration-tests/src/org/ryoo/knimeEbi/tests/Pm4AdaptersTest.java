@@ -176,6 +176,31 @@ public class Pm4AdaptersTest {
         assertEquals(Map.of("A", 1L, "B", 2L), DfgCodec.boundaryCounts(roundTrip).ends());
     }
 
+    @Test public void directlyFollowsReconstructsOccurrencesAfterPm4KnimeReload() throws Exception {
+        // A self-loop contributes to both incoming and outgoing counts. PM4KNIME's
+        // port importer can restore each activity with cardinality one.
+        String dfg = "{\"activities\":{\"A\":\"18\",\"B\":\"12\",\"C\":\"12\"},"
+            + "\"directly_follows_relations\":[[[\"A\",\"A\"],\"6\"],[[\"A\",\"B\"],\"12\"],[[\"B\",\"C\"],\"12\"]],"
+            + "\"start_activities\":[\"A\"],\"end_activities\":[\"C\"]}";
+        PortObject port = EbiPortAdapters.deserialize("DfgMsdPortObject", ".dfg", dfg);
+        Object model = call(port, "getDfgMsd");
+        String[] labels = (String[])call(model, "getAllActivities");
+        Object counts = call(model, "getActivities");
+        var remove = counts.getClass().getMethod("remove", int.class);
+        var add = counts.getClass().getMethod("add", int.class, long.class);
+        // Reproduce the loss of activity frequencies without changing edges or boundaries.
+        for (int i = 0; i < labels.length; i++) {
+            remove.invoke(counts, i);
+            add.invoke(counts, i, 1L);
+        }
+        DfgCodec.Graph expected = DfgCodec.parse(dfg);
+        DfgCodec.Graph actual = DfgCodec.parse(EbiPortAdapters.serialize(port));
+        assertEquals(expected.activities(), actual.activities());
+        assertEquals(Set.copyOf(expected.edges()), Set.copyOf(actual.edges()));
+        assertEquals(expected.starts(), actual.starts());
+        assertEquals(expected.ends(), actual.ends());
+    }
+
     @Test public void directlyFollowsRejectsInconsistentPm4KnimeBoundaryCountsBeforeEbi() throws Exception {
         PortObject port = EbiPortAdapters.deserialize("DfgMsdPortObject", ".dfg", fixture("ebi-directly-follows.dfg"));
         Object model = call(port, "getDfgMsd");
@@ -186,7 +211,7 @@ public class Pm4AdaptersTest {
             EbiPortAdapters.serialize(port);
             fail("Inconsistent boundary count must not be exported to Ebi.");
         } catch (IllegalArgumentException expected) {
-            assertTrue(expected.getMessage().contains("start count"));
+            assertTrue(expected.getMessage().contains("flow imbalance"));
         }
     }
 

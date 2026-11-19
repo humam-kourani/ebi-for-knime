@@ -201,21 +201,38 @@ public final class EbiPortAdapters {
         if (((Number)Pm4Reflection.call(model, "getNumberOfEmptyTraces")).longValue() != 0)
             throw new IllegalArgumentException("Ebi .dfg cannot retain empty-trace counts. Use the original event log or a native Ebi document.");
         String[] labels = (String[])Pm4Reflection.call(model, "getAllActivities");
-        Map<String, String> activities = new LinkedHashMap<>();
-        Object counts = Pm4Reflection.call(model, "getActivities");
-        for (Object index : iterable(counts)) {
-            int i = ((Number)index).intValue();
-            if (activities.putIfAbsent(labels[i], String.valueOf(Pm4Reflection.call(counts, "getCardinalityOf", i))) != null)
-                throw new IllegalArgumentException("Ebi .dfg cannot merge distinct activity nodes with identical labels.");
-        }
         Object edges = Pm4Reflection.call(model, "getDirectlyFollowsGraph");
         List<DfgCodec.Edge> resultEdges = new ArrayList<>();
+        long[] incoming = new long[labels.length];
+        long[] outgoing = new long[labels.length];
         for (Object edge : iterable(Pm4Reflection.call(edges, "getEdges"))) {
             long id = ((Number)edge).longValue(); long weight = ((Number)Pm4Reflection.call(edges, "getEdgeWeight", id)).longValue();
             if (weight <= 0) continue;
             int source = ((Number)Pm4Reflection.call(edges, "getEdgeSource", id)).intValue();
             int target = ((Number)Pm4Reflection.call(edges, "getEdgeTarget", id)).intValue();
+            outgoing[source] = Math.addExact(outgoing[source], weight);
+            incoming[target] = Math.addExact(incoming[target], weight);
             resultEdges.add(new DfgCodec.Edge(labels[source], labels[target], String.valueOf(weight)));
+        }
+
+        // PM4KNIME's DfgMsdPortObject persistence stores the labels and weighted
+        // edges/boundaries, but not activity occurrence counts. After a reload,
+        // ProM's importer initializes each activity with cardinality one. Recover
+        // the actual counts from the preserved flow rather than trusting them.
+        Object starts = Pm4Reflection.call(model, "getStartActivities");
+        Object ends = Pm4Reflection.call(model, "getEndActivities");
+        Map<String, String> activities = new LinkedHashMap<>();
+        for (int i = 0; i < labels.length; i++) {
+            long startCount = ((Number)Pm4Reflection.call(starts, "getCardinalityOf", i)).longValue();
+            long endCount = ((Number)Pm4Reflection.call(ends, "getCardinalityOf", i)).longValue();
+            long viaIncoming = Math.addExact(incoming[i], startCount);
+            long viaOutgoing = Math.addExact(outgoing[i], endCount);
+            if (viaIncoming != viaOutgoing)
+                throw new IllegalArgumentException("PM4KNIME DFG flow imbalance for activity '" + labels[i]
+                    + "': incoming + starts = " + viaIncoming + ", outgoing + ends = " + viaOutgoing + ".");
+            if (viaIncoming == 0) continue;
+            if (activities.putIfAbsent(labels[i], Long.toString(viaIncoming)) != null)
+                throw new IllegalArgumentException("Ebi .dfg cannot merge distinct activity nodes with identical labels.");
         }
         // Ebi's .dfg format has no explicit boundary frequencies: they are implied by
         // activity counts minus incoming/outgoing edge counts, including self-loops.
