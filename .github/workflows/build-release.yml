@@ -131,6 +131,10 @@ jobs:
 
       - name: Production Java/Python regression checks
         run: python scripts/run-tests.py
+      - name: Retained Equinox cache and resource-revision regression checks
+        # Separate JVM launches retain the same framework/registry storage.
+        # This must pass without -clean or deleting the stored bundle state.
+        run: python tests/run_upgrade_tests.py
       - name: Native Linux JNI smoke and packaged-resource checks
         run: python tests/run_native_tests.py --native
       - name: JNI command smoke checks (known upstream defects reported separately)

@@ -4,10 +4,15 @@ import static org.junit.Assert.*;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
+import org.eclipse.core.runtime.IConfigurationElement;
+import org.eclipse.core.runtime.Platform;
 import org.junit.Test;
 import org.knime.core.data.image.ImageValue;
 import org.knime.core.node.ExecutionMonitor;
@@ -28,6 +33,50 @@ import org.w3c.dom.Element;
 
 /** Tests real extension registration and KNIME APIs inside the Equinox runtime. */
 public class RegistrySmokeTest {
+    @Test
+    public void liveExtensionRegistryMatchesTheInstalledBundle() throws Exception {
+        var bundle = FrameworkUtil.getBundle(EbiDocumentPortObject.class);
+        assertNotNull("Test must run in OSGi", bundle);
+        var registry = Platform.getExtensionRegistry();
+        assertNotNull("The Eclipse extension registry must be running", registry);
+        var parser = DocumentBuilderFactory.newInstance();
+        parser.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        parser.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+        parser.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+        Set<String> expected = new TreeSet<>();
+        try (var in = bundle.getEntry("plugin.xml").openStream()) {
+            var entries = parser.newDocumentBuilder().parse(in).getElementsByTagName("node");
+            for (int i = 0; i < entries.getLength(); i++) {
+                String name = ((Element)entries.item(i)).getAttribute("factory-class");
+                assertFalse("A packaged node needs a factory-class", name.isBlank());
+                assertTrue("Duplicate packaged node factory " + name, expected.add(name));
+            }
+        }
+        assertFalse("The packaged plug-in must declare nodes", expected.isEmpty());
+
+        Map<String, IConfigurationElement> actual = new HashMap<>();
+        for (var element : registry.getConfigurationElementsFor("org.knime.workbench.repository.nodes")) {
+            if (bundle.getSymbolicName().equals(element.getContributor().getName())
+                    && "node".equals(element.getName())) {
+                String name = element.getAttribute("factory-class");
+                assertNotNull("A registered node needs a factory-class", name);
+                assertNull("Duplicate live node factory " + name, actual.put(name, element));
+            }
+        }
+        assertEquals("The live registry must contain exactly the installed Ebi factories; "
+                + "reading plugin.xml alone cannot detect a stale registry", expected,
+                new TreeSet<>(actual.keySet()));
+        for (String name : expected) {
+            Object factory = actual.get(name).createExecutableExtension("factory-class");
+            assertTrue("Registry entry must create a KNIME factory: " + name,
+                    factory instanceof DefaultNodeFactory);
+            assertSame("Registry factory must belong to the current Ebi bundle: " + name,
+                    bundle, FrameworkUtil.getBundle(factory.getClass()));
+            assertSame("Registry factory must use the current Ebi class wiring: " + name,
+                    bundle.loadClass(name), factory.getClass());
+        }
+    }
+
     @Test
     public void allRegisteredFactoriesCreateRequiredTypedPortConfigurations() throws Exception {
         var bundle = FrameworkUtil.getBundle(EbiDocumentPortObject.class);
@@ -154,6 +203,8 @@ public class RegistrySmokeTest {
 
     @Test
     public void nativeWorkerRunsFromTheOsgiBundleClasspath() throws Exception {
+        assertSame("The JNI bridge and nodes must come from the same Ebi bundle",
+                FrameworkUtil.getBundle(EbiDocumentPortObject.class), FrameworkUtil.getBundle(CallEbi.class));
         String xes = "<?xml version=\"1.0\"?><log xes.version=\"1.0\" xmlns=\"http://www.xes-standard.org/\"><trace><event><string key=\"concept:name\" value=\"A\"/></event></trace></log>";
         String result = CallEbi.call_ebi("Ebi convert log", ".xes", new String[] {xes});
         assertTrue(result.contains("<trace>"));

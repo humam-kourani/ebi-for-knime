@@ -2,7 +2,6 @@ package org.processmining.ebi;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -34,7 +33,7 @@ final class NativeLibraryLoader {
             throw new IllegalStateException("Unable to load the Ebi Java JNI library " + library
                     + ". Check JVM architecture, JNI exports, glibc and libgcc. "
                     + "A CLI executable or Python library cannot replace the Java library. Cause: "
-                    + error.getMessage(), error);
+                    + error.getMessage() + resourceDiagnostic(), error);
         }
     }
 
@@ -60,7 +59,8 @@ final class NativeLibraryLoader {
                     + "On Linux, compatible glibc and libgcc are required. "
                     + (library == null ? "" : "Library: " + library + ". ")
                     + "An existing upstream library may be selected with -D" + OVERRIDE_PROPERTY
-                    + "=/absolute/path/to/" + platform.fileName + ". Cause: " + error.getMessage(), error);
+                    + "=/absolute/path/to/" + platform.fileName + ". Cause: " + error.getMessage()
+                    + resourceDiagnostic(), error);
         }
     }
 
@@ -98,31 +98,32 @@ final class NativeLibraryLoader {
         return library.toAbsolutePath();
     }
 
-    /** Supports flat classpaths, nested PDE JARs, and standalone source trees. */
+    /** Resolve native bytes through the same classloader revision as the JNI bridge. */
     private static InputStream openResource(final String name) throws IOException {
         final InputStream classpath = CallEbi.class.getResourceAsStream("/" + name);
         if (classpath != null) {
             return classpath;
         }
-        // Public OSGi APIs via reflection keep standalone generation JDK-only.
-        try {
-            final ClassLoader loader = CallEbi.class.getClassLoader();
-            final Class<?> framework = Class.forName("org.osgi.framework.FrameworkUtil", false, loader);
-            final Object bundle = framework.getMethod("getBundle", Class.class).invoke(null, CallEbi.class);
-            if (bundle != null) {
-                final Class<?> bundleApi = Class.forName("org.osgi.framework.Bundle", false, loader);
-                final URL resource = (URL)bundleApi.getMethod("getEntry", String.class).invoke(bundle, name);
-                return resource == null ? null : resource.openStream();
-            }
-        } catch (ClassNotFoundException ignored) {
-            // Eclipse/OSGi is intentionally optional outside KNIME.
-        } catch (ReflectiveOperationException error) {
-            final Throwable cause = error instanceof InvocationTargetException
-                    ? ((InvocationTargetException)error).getTargetException() : error;
-            throw new IOException("Cannot resolve Ebi's native resource from the OSGi bundle.", cause);
+        // Bundle.getEntry() follows the CURRENT bundle revision after an update,
+        // even when this class still belongs to an older wiring. Never combine
+        // that revision's native bytes with this revision's Java bridge/checksum.
+        // The shipped bundle exposes both classes and lib/ on Bundle-ClassPath: .
+        final URL bytecode = CallEbi.class.getResource("CallEbi.class");
+        if (bytecode != null && "file".equals(bytecode.getProtocol())) {
+            // Preserve JDK-only generation from loose classes and a source tree.
+            final Path sourceTree = Path.of(name);
+            return Files.isRegularFile(sourceTree) ? Files.newInputStream(sourceTree) : null;
         }
-        final Path sourceTree = Path.of(name);
-        return Files.isRegularFile(sourceTree) ? Files.newInputStream(sourceTree) : null;
+        return null;
+    }
+
+    private static String resourceDiagnostic() {
+        try {
+            return " Java bridge resource: " + CallEbi.class.getResource("CallEbi.class")
+                    + "; expected Ebi " + EbiNativeBuild.VERSION + " (" + EbiNativeBuild.JNI_API + ").";
+        } catch (SecurityException ignored) {
+            return ""; // Diagnostic lookup must not hide the original load failure.
+        }
     }
 
     static void verifyDigest(final Path file, final String expected) throws IOException {

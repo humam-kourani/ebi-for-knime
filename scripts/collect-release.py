@@ -18,7 +18,8 @@ def collect(commit: str):
     if not site.is_file(): raise RuntimeError('Tycho p2 ZIP not found; run mvn clean verify')
     version = re.search(r'<version>(\d+\.\d+\.\d+)-SNAPSHOT</version>',
                         (ROOT/'pom.xml').read_text()).group(1)
-    verify(site, version)
+    lock = json.loads((ROOT/'native-artifacts.json').read_text())
+    verify(site, version, expected_native_lock=lock)
     with zipfile.ZipFile(site) as archive:
         names = set(archive.namelist())
         if not ({'content.jar','content.xml','content.xml.xz'} & names):
@@ -45,26 +46,9 @@ def collect(commit: str):
         if not any(item.get('feature') == 'org.pm4knime.feature' and item.get('match') == 'greaterOrEqual'
                    for item in required):
             raise RuntimeError('Packaged Ebi feature does not require the PM4KNIME installable feature')
-    lock = json.loads((ROOT/'native-artifacts.json').read_text())
     with zipfile.ZipFile(io.BytesIO(plugin)) as bundle:
-        names = set(bundle.namelist())
-        for required in ['META-INF/MANIFEST.MF','plugin.xml','knimeebi.jar','icons/ebi.png','LICENSE',
-                         'lib/native-artifacts.json','lib/LICENSE-Ebi-MIT.txt']:
-            if required not in names: raise RuntimeError('Missing packaged resource '+required)
         if bundle.read('LICENSE') != license_bytes:
             raise RuntimeError('Plug-in jar LICENSE differs from the root AGPL v3 file')
-        if json.loads(bundle.read('lib/native-artifacts.json')) != lock:
-            raise RuntimeError('Packaged native provenance differs from tracked lock')
-        for entry in lock['artifacts']:
-            name = entry['path'].removeprefix('extension/')
-            if name not in names: raise RuntimeError('Missing native '+name)
-            raw = bundle.read(name)
-            if len(raw)!=entry['size'] or hashlib.sha256(raw).hexdigest()!=entry['sha256']:
-                raise RuntimeError('Native file failed checksum inside p2: '+name)
-        with zipfile.ZipFile(io.BytesIO(bundle.read('knimeebi.jar'))) as classes:
-            required = {'org/ryoo/knimeEbi/scaffolder/commands.xml','org/ryoo/knimeEbi/node/default.png'}
-            if not required.issubset(set(classes.namelist())):
-                raise RuntimeError('Generated command catalogue/icons not packaged')
     dist = ROOT/'dist'
     dist.mkdir(exist_ok=True)
     shutil.copy2(site,dist/site.name)
