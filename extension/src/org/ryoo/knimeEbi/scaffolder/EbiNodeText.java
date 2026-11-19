@@ -72,7 +72,7 @@ public final class EbiNodeText {
             case "xes event log", "event log" -> "Event log";
             case "labelled petri net" -> "Petri net";
             case "process tree" -> "Process tree";
-            case "directly follows graph" -> "Directly-follows graph";
+            case "directly follows graph" -> "Directly-Follows Graph";
             case "stochastic labelled petri net" -> "Stochastic Petri net";
             case "stochastic process tree" -> "Stochastic process tree";
             case "deterministic finite automaton" -> "Deterministic automaton";
@@ -169,7 +169,7 @@ public final class EbiNodeText {
             case "XLogPortObject" -> "Event log";
             case "PetriNetPortObject" -> "Petri net";
             case "ProcessTreePortObject" -> "Process tree";
-            case "DfgMsdPortObject" -> "Directly-follows graph";
+            case "DfgMsdPortObject" -> "Directly-Follows Graph";
             case "BpmnPortObject" -> "BPMN model";
             case "ImagePortObject" -> "SVG image";
             case "EbiDocumentPortObject" -> "Ebi document";

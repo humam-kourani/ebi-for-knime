@@ -165,7 +165,8 @@ public final class GeneratorRegressionTest {
         test("output labels distinguish models logs and exact results", () -> {
             equal("Event log", EbiNodeText.outputName(command("filter log traces empty")));
             equal("Stochastic process tree", EbiNodeText.outputName(command("discover occurrence stochastic-process-tree")));
-            equal("Directly-follows graph", EbiNodeText.outputName(command("discover directly-follows-graph")));
+            equal("Directly-Follows Graph", EbiNodeText.outputName(command("discover directly-follows-graph")));
+            equal("Directly-Follows Graph", EbiNodeText.portTypeName("DfgMsdPortObject"));
             equal("Exact result", EbiNodeText.outputName(command("conformance entropic-relevance")));
             equal("Statistical report", EbiNodeText.outputName(command("test bootstrap-test")));
         });
@@ -231,6 +232,13 @@ public final class GeneratorRegressionTest {
             equal("Output: Event log", EbiPortGroups.outputGroupId(filter));
             equal("Input: First event log", EbiPortGroups.inputGroupId(command("test bootstrap-test"), 0));
             equal("Input: Second event log", EbiPortGroups.inputGroupId(command("test bootstrap-test"), 1));
+            var dfg = command("discover directly-follows-graph");
+            equal("Output: Directly-follows graph", EbiPortGroups.outputGroupId(dfg));
+            var dfgInput = new EbiCommandMetadataParameter("DfgMsd", "DfgMsdPortObject", "DFG\n", true);
+            var dfgOutput = new EbiCommandMetadataParameter("directly follows graph", "DfgMsdPortObject", "", true);
+            var dfgContract = new EbiCommandMetadata("Ebi DFG name", "DFG", "DFG", List.of(dfgInput), dfgOutput);
+            equal("Directly-Follows Graph", EbiNodeText.inputName(dfgContract, 0));
+            equal("Input: Directly-follows graph", EbiPortGroups.inputGroupId(dfgContract, 0));
         });
         test("generated migration map covers all factories and fixed groups", () -> {
             String mapping = EbiNodeGenerator.portGroupMigrationJson(commands);
@@ -350,13 +358,20 @@ public final class GeneratorRegressionTest {
             for (var m : commands)
                 if (!m.outputFormats.containsValue(".svg")) yes(!m.outputFormats.containsKey("ImagePortObject"));
         });
-        test("input defaults follow Ebi's format order, with typed ports before documents", () -> {
-            equal(List.of("PetriNetPortObject", "XLogPortObject", "ProcessTreePortObject"),
+        test("input defaults follow the global priority, regardless of Ebi manual order", () -> {
+            equal(List.of("PetriNetPortObject", "ProcessTreePortObject", "XLogPortObject"),
                 EbiManualMetadata.orderedInputPorts(new java.util.LinkedHashSet<>(List.of(".pnml", ".xes", ".ptml"))));
             equal(List.of("DfgMsdPortObject", "XLogPortObject", "EbiDocumentPortObject"),
                 EbiManualMetadata.orderedInputPorts(new java.util.LinkedHashSet<>(List.of(".dfg", ".slang", ".xes"))));
             equal(List.of("XLogPortObject", "EbiDocumentPortObject"),
                 EbiManualMetadata.orderedInputPorts(new java.util.LinkedHashSet<>(List.of(".slang", ".xes"))));
+            var expected = List.of("PetriNetPortObject", "ProcessTreePortObject", "DfgMsdPortObject",
+                "BpmnPortObject", "XLogPortObject", "BufferedDataTable", "EbiDocumentPortObject");
+            equal(expected, EbiManualMetadata.orderedInputPorts(new java.util.LinkedHashSet<>(
+                List.of(".csv", ".xes", ".bpmn", ".dfg", ".ptml", ".pnml", ".slang"))));
+            equal(expected, EbiManualMetadata.orderedInputPorts(new java.util.LinkedHashSet<>(
+                List.of(".slang", ".pnml", ".ptml", ".dfg", ".bpmn", ".xes", ".csv"))));
+            rejects(() -> EbiCommandMetadata.sortedInputPorts(java.util.Set.of("ImagePortObject")));
         });
         test("existing output defaults are unaffected by input ordering", () -> {
             equal("DfgMsdPortObject", command("discover directly-follows-graph").output.portType);
@@ -364,7 +379,7 @@ public final class GeneratorRegressionTest {
             equal("ImagePortObject", command("visualise graph").output.portType);
         });
         test("CSV inputs create KNIME table alternatives without changing outputs", () -> {
-            equal(List.of("BufferedDataTable", "XLogPortObject"),
+            equal(List.of("XLogPortObject", "BufferedDataTable"),
                 EbiManualMetadata.orderedInputPorts(new java.util.LinkedHashSet<>(List.of(".csv", ".xes"))));
             equal(List.of("XLogPortObject", "BufferedDataTable"),
                 EbiManualMetadata.orderedInputPorts(new java.util.LinkedHashSet<>(List.of(".xes", ".csv"))));

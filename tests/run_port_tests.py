@@ -14,7 +14,7 @@ def main():
     root = pathlib.Path(__file__).resolve().parents[1]
     src = root / 'extension/src/org/ryoo/knimeEbi'
     sources = [src / p for p in [
-        'port/EbiDocument.java', 'util/DfgCodec.java', 'util/XmlText.java', 'util/PtmlCompatibilityUtil.java',
+        'port/EbiDocument.java', 'util/DfgCodec.java', 'util/XmlText.java', 'util/EbiSvgCompatibility.java', 'util/PtmlCompatibilityUtil.java',
         'util/EbiPortContract.java', 'util/EbiScalarResult.java', 'util/PnmlWriter.java', 'util/EbiNativeOutputCompatibility.java', 'util/EbiCsv.java', 'scaffolder/EbiCommandMetadata.java',
         'scaffolder/EbiCommandMetadataParameter.java', 'scaffolder/EbiCommandVariant.java',
         'scaffolder/EbiTableOutputType.java']]

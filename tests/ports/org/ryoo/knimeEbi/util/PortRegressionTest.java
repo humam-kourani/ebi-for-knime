@@ -97,6 +97,28 @@ public final class PortRegressionTest {
         test("XML wrong native fallback rejected", () -> fails(() -> XmlText.utf8("<ptml/>", "pnml")));
         test("XML malformed document rejected", () -> fails(() -> XmlText.utf8("<pnml>", "pnml")));
         test("XML external entity rejected", () -> fails(() -> XmlText.utf8("<!DOCTYPE pnml [<!ENTITY x SYSTEM 'file:///etc/passwd'>]><pnml>&x;</pnml>", "pnml")));
+        test("SVG 2 paint and textPath adapt without changing labels", () -> {
+            String svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"120\" height=\"40\">"
+                + "<defs><marker id=\"m\"><path d=\"M0 0L5 5\" fill=\"context-stroke\"/></marker></defs>"
+                + "<path id=\"edge\" d=\"M0 10L100 10\" stroke=\"#000000ff\" fill=\"transparent\"/>"
+                + "<rect width=\"5\" height=\"5\" fill=\"#80808080\"/>"
+                + "<text><textPath href=\"#edge\">Ä東</textPath></text></svg>";
+            String normalized = EbiSvgCompatibility.forKnime(svg);
+            XmlText.utf8(normalized, "svg");
+            for (String token : List.of("xmlns:xlink=", "xlink:href=\"#edge\"", "fill=\"none\"",
+                    "stroke=\"#000000\"", "fill=\"currentColor\"", "fill=\"#808080\"",
+                    "fill-opacity=\"0.50196078\"", "Ä東")) {
+                if (!normalized.contains(token)) throw new AssertionError("SVG normalization lost " + token);
+            }
+            if (normalized.contains("#000000ff") || normalized.contains("<textPath href="))
+                throw new AssertionError("SVG 2 attributes were not normalized.");
+        });
+        test("SVG normalization rejects external references and XML entities", () -> {
+            fails(() -> EbiSvgCompatibility.forKnime(
+                "<svg xmlns=\"http://www.w3.org/2000/svg\"><text><textPath href=\"https://example.org/path\">x</textPath></text></svg>"));
+            fails(() -> EbiSvgCompatibility.forKnime(
+                "<!DOCTYPE svg [<!ENTITY x SYSTEM 'file:///etc/passwd'>]><svg xmlns=\"http://www.w3.org/2000/svg\">&x;</svg>"));
+        });
         test("PTML preserves Unicode and escapes", () -> { String repaired = PtmlCompatibilityUtil.toPm4KnimePtml(ptml(node("manualTask", "a"), "a")); if (!repaired.contains("Å&amp;東")) throw new AssertionError(repaired); });
         test("PTML duplicate nodes rejected", () -> fails(() -> PtmlCompatibilityUtil.toPm4KnimePtml(ptml(node("manualTask", "a") + node("manualTask", "a"), "a"))));
         test("PTML missing root rejected", () -> fails(() -> PtmlCompatibilityUtil.toPm4KnimePtml(ptml(node("manualTask", "a"), "z"))));

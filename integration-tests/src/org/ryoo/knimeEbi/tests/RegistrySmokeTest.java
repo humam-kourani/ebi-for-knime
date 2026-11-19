@@ -9,10 +9,12 @@ import java.util.Set;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.junit.Test;
+import org.knime.core.data.image.ImageValue;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.NodeSettings;
 import org.knime.core.node.port.PortTypeRegistry;
 import org.knime.core.node.port.PortUtil;
+import org.knime.core.node.port.image.ImagePortObject;
 import org.knime.node.DefaultNodeFactory;
 import org.osgi.framework.FrameworkUtil;
 import org.ryoo.knimeEbi.port.EbiDocumentPortObject;
@@ -134,6 +136,20 @@ public class RegistrySmokeTest {
         assertEquals(original, restored);
         assertEquals(original.getSpec(), restored.getSpec());
         assertEquals(text, ((EbiDocumentPortObject)restored).getText());
+    }
+
+    @Test
+    public void svgImagePortsSurviveKnimeSerialization() throws Exception {
+        var image = EbiPortAdapters.deserialize("ImagePortObject", ".svg",
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"64\" height=\"32\">"
+                + "<rect width=\"64\" height=\"32\"/></svg>");
+        var bytes = new ByteArrayOutputStream();
+        PortUtil.writeObjectToStream(image, bytes, new ExecutionMonitor());
+        var restored = PortUtil.readObjectFromStream(
+            new ByteArrayInputStream(bytes.toByteArray()), new ExecutionMonitor());
+        assertTrue(restored instanceof ImagePortObject);
+        assertEquals(image.getSpec(), restored.getSpec());
+        assertTrue(((ImagePortObject)restored).toDataCell() instanceof ImageValue);
     }
 
     @Test

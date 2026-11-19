@@ -197,6 +197,18 @@ public class Pm4AdaptersTest {
         }
     }
 
+    /** Regression: Ebi's SVG 2 textPath and paint syntax must work with KNIME's Batik renderer. */
+    @Test public void svg2OutputIsRenderSafeAndDocumentRemainsOriginal() throws Exception {
+        String svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"120\" height=\"40\">"
+            + "<defs><marker id=\"m\"><path d=\"M0 0L5 5\" fill=\"context-stroke\"/></marker></defs>"
+            + "<path id=\"edge\" d=\"M0 10L100 10\" stroke=\"#000000ff\" fill=\"transparent\"/>"
+            + "<text><textPath href=\"#edge\">Ebi label</textPath></text></svg>";
+        var document = (EbiDocumentPortObject)EbiPortAdapters.deserialize("EbiDocumentPortObject", ".svg", svg);
+        assertEquals("Ebi document must retain native SVG", svg, document.getText());
+        var image = (ImagePortObject)EbiPortAdapters.deserialize("ImagePortObject", ".svg", svg);
+        assertTrue(image.toDataCell() instanceof ImageValue);
+    }
+
     @Test public void nativeSnfaSyntaxRepairMakesInitialStateNumeric() throws Exception {
         String text = fixture("ebi-snfa-broken.snfa");
         PortObject port = EbiPortAdapters.deserialize("EbiDocumentPortObject", ".snfa", text);

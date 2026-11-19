@@ -21,8 +21,12 @@ public final class EbiCommandMetadata {
     private static final Pattern CALL = Pattern.compile("CallEbi\\.call_ebi\\s*\\(\\s*" + QUOTED + "\\s*,\\s*" + QUOTED);
     private static final Pattern PANEL = Pattern.compile("create_input_panel\\s*\\(\\s*" + QUOTED);
     private static final Set<String> PRIMITIVES = Set.of("Integer", "String", "Byte", "Short", "Long", "Double", "Float", "Character", "Boolean", "BigFraction");
+    /** Supported port types and existing output ordering; SVG images are output-only. */
     public static final List<String> PORT_ORDER = List.of("XLogPortObject", "PetriNetPortObject",
         "ProcessTreePortObject", "DfgMsdPortObject", "BpmnPortObject", "ImagePortObject", "EbiDocumentPortObject", "BufferedDataTable");
+    /** Global input defaults, independent of the ordering in Ebi's manual. */
+    public static final List<String> INPUT_PORT_PRIORITY = List.of("PetriNetPortObject", "ProcessTreePortObject",
+        "DfgMsdPortObject", "BpmnPortObject", "XLogPortObject", "BufferedDataTable", "EbiDocumentPortObject");
 
     public final String commandName;
     public final String shortDescription;
@@ -87,7 +91,7 @@ public final class EbiCommandMetadata {
         Objects.requireNonNull(metadata, "metadata");
         if (!metadata.output.isPort) throw new IllegalArgumentException("Output must be a port.");
         for (EbiCommandMetadataParameter p : metadata.inputs) {
-            if (p.isPort && !PORT_ORDER.containsAll(p.supportedPortTypes))
+            if (p.isPort && !INPUT_PORT_PRIORITY.containsAll(p.supportedPortTypes))
                 throw new IllegalArgumentException("Unsupported input port types: " + p.supportedPortTypes);
         }
         if (!PORT_ORDER.containsAll(metadata.output.supportedPortTypes))
@@ -181,7 +185,7 @@ public final class EbiCommandMetadata {
         List<EbiCommandMetadataParameter> merged = new ArrayList<>();
         for (int i = 0; i < firstInputs.size(); i++) {
             EbiCommandMetadataParameter p = firstInputs.get(i);
-            List<String> allowed = sortedPorts(alternatives.get(i));
+            List<String> allowed = sortedInputPorts(alternatives.get(i));
             merged.add(new EbiCommandMetadataParameter(p.type, p.isPort ? allowed.get(0) : "",
                 p.typeDescription, p.isPort, allowed));
         }
@@ -219,6 +223,11 @@ public final class EbiCommandMetadata {
 
     public static List<String> sortedPorts(final Set<String> ports) {
         return ports.stream().sorted(Comparator.comparingInt(PORT_ORDER::indexOf)).toList();
+    }
+    public static List<String> sortedInputPorts(final Set<String> ports) {
+        if (!INPUT_PORT_PRIORITY.containsAll(ports))
+            throw new IllegalArgumentException("Unsupported input port types: " + ports);
+        return ports.stream().sorted(Comparator.comparingInt(INPUT_PORT_PRIORITY::indexOf)).toList();
     }
     public static boolean inputIsPrimitive(final String type) { return PRIMITIVES.contains(type); }
     public static String inputPortType(final String type) {

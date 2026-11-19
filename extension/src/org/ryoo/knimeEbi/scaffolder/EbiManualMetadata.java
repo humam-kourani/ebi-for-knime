@@ -208,16 +208,14 @@ public final class EbiManualMetadata {
         return new EbiCommandMetadataParameter(originalType, allowed.get(0), description, true, allowed, raw);
     }
 
-    /** Preserve Ebi's accepted-format order; put the generic document after typed ports. */
+    /** Apply the global input priority regardless of the order in Ebi's manual. */
     static List<String> orderedInputPorts(final Set<String> formats) {
         LinkedHashSet<String> ports = new LinkedHashSet<>();
-        for (String format : formats) {
-            if (format.equals(".csv")) ports.add("BufferedDataTable");
-            for (Map.Entry<String, String> adapter : INPUT_FORMATS.entrySet())
-                if (format.equals(adapter.getValue())) ports.add(adapter.getKey());
-        }
+        if (formats.contains(".csv")) ports.add("BufferedDataTable");
+        for (Map.Entry<String, String> adapter : INPUT_FORMATS.entrySet())
+            if (formats.contains(adapter.getValue())) ports.add(adapter.getKey());
         if (formats.stream().anyMatch(DOCUMENT_FORMATS::contains)) ports.add("EbiDocumentPortObject");
-        return List.copyOf(ports);
+        return EbiCommandMetadata.sortedInputPorts(ports);
     }
 
     private List<Argument> arguments(final String section) {

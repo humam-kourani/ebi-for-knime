@@ -4,14 +4,19 @@ package org.ryoo.knimeEbi.scaffolder;
 public final class EbiPortGroups {
     private EbiPortGroups() { }
 
-    // These readable IDs are persisted in workflows from extension version 1.1.1 onward.
-    // Changes to role labels or these prefixes require an explicit workflow migration;
-    // they must not be renamed casually as if they were presentation-only strings.
+    // These IDs are persisted in workflows from version 1.1.1 onward. Changing the
+    // user-facing spelling must never silently change a saved group's identifier.
     public static String inputGroupId(final EbiCommandMetadata metadata, final int logicalIndex) {
-        return "Input: " + EbiNodeText.inputName(metadata, logicalIndex);
+        return "Input: " + persistedLabel(EbiNodeText.inputName(metadata, logicalIndex));
     }
 
     public static String outputGroupId(final EbiCommandMetadata metadata) {
-        return "Output: " + EbiNodeText.outputName(metadata);
+        return "Output: " + persistedLabel(EbiNodeText.outputName(metadata));
+    }
+
+    private static String persistedLabel(final String visibleLabel) {
+        // Keep the 1.1.1 identifiers while displaying "Directly-Follows Graph".
+        return visibleLabel.replace("Directly-Follows Graph", "Directly-follows graph")
+            .replace("directly-Follows Graph", "directly-follows graph");
     }
 }

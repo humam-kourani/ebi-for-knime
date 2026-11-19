@@ -157,7 +157,7 @@ public final class EbiPortAdapters {
             case "ImagePortObject" -> {
                 if (!".svg".equals(format)) throw new IllegalArgumentException("KNIME image output requires an SVG exporter.");
                 String svg = XmlText.utf8(text, "svg");
-                yield EbiSvgImage.fromText(svg);
+                yield EbiSvgImage.fromText(EbiSvgCompatibility.forKnime(svg));
             }
             case "EbiDocumentPortObject" -> new EbiDocumentPortObject(format, EbiNativeOutputCompatibility.normalize(format, text));
             case "BpmnPortObject" -> new BpmnPortObject(XmlText.utf8(text, "definitions"));
@@ -190,7 +190,7 @@ public final class EbiPortAdapters {
 
     private static DfgCodec.Graph readDfgMsd(Object port) throws Exception {
         Object model = Pm4Reflection.call(port, "getDfgMsd");
-        if (model == null) throw new IllegalArgumentException("The directly-follows graph port is empty.");
+        if (model == null) throw new IllegalArgumentException("The Directly-Follows Graph port is empty.");
         if (((Number)Pm4Reflection.call(model, "getNumberOfEmptyTraces")).longValue() != 0)
             throw new IllegalArgumentException("Ebi .dfg cannot retain empty-trace counts. Use the original event log or a native Ebi document.");
         String[] labels = (String[])Pm4Reflection.call(model, "getAllActivities");
@@ -230,7 +230,7 @@ public final class EbiPortAdapters {
         for (int i = 0; i < labels.length; i++) {
             index.put(labels[i], i); Pm4Reflection.call(model, "touchActivity", i);
             long count = DfgCodec.exactCount(graph.activities().get(labels[i]));
-            if (count == 0) throw new IllegalArgumentException("PM4KNIME DfgMsd cannot retain a zero-count activity. Select Ebi document output.");
+            if (count == 0) throw new IllegalArgumentException("The PM4KNIME Directly-Follows Graph port cannot retain a zero-count activity. Select Ebi document output.");
             Pm4Reflection.call(counts, "add", i, count);
         }
         for (String name : graph.starts()) Pm4Reflection.call(Pm4Reflection.call(model, "getStartActivities"), "add", index.get(name), 1L);
