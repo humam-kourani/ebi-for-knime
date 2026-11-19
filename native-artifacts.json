@@ -1,16 +1,16 @@
 {
   "schema_version": 1,
-  "retrieved_utc": "2026-11-18T18:42:26Z",
-  "version": "0.3.28",
+  "retrieved_utc": "2026-11-19T14:59:03Z",
+  "version": "0.3.29",
   "pin_type": "GitHub tag or local JAR; SHA-256 native JNI validation required",
   "source_commit": null,
   "artifacts": [
     {
       "platform": "linux-x86_64",
       "path": "extension/lib/linux-x86_64/libebi.so",
-      "sha256": "4ac76d15fa2105fa4885aac8bf844b7fa7aba5c8647aac64f60e7ad2396de183",
-      "size": 20732208,
-      "embedded_version": "0.3.28",
+      "sha256": "6592dc1770ceeb45034b64025a3dd910c67be24e7c59ddd58894066da521afdb",
+      "size": 20732656,
+      "embedded_version": "0.3.29",
       "url": null,
       "source": "Official Ebi GitHub Release JAR native binary",
       "runtime_verified": false,
@@ -25,9 +25,9 @@
     {
       "platform": "windows-x86_64",
       "path": "extension/lib/windows-x86_64/ebi.dll",
-      "sha256": "fe0b90b07d21da215f0abbcce2cdff5e10bfd6c48195ca6dffd1b5dfa746db8e",
-      "size": 34625536,
-      "embedded_version": "0.3.28",
+      "sha256": "944ee99fa5d35d7db1d4bd840a0b94ad6b086b72ca14e914f232518193b4b49d",
+      "size": 34626560,
+      "embedded_version": "0.3.29",
       "url": null,
       "source": "Official Ebi GitHub Release JAR native binary",
       "runtime_verified": false,
@@ -49,8 +49,8 @@
     }
   ],
   "upstream_releases_url": "https://github.com/BPM-Research-Group/Ebi/releases",
-  "source_release_tag": "v0.3.28",
+  "source_release_tag": "v0.3.29",
   "jni_api": "ebitools",
-  "source_release_url": "https://github.com/BPM-Research-Group/Ebi/releases/tag/v0.3.28",
-  "source_jar_url": "https://github.com/BPM-Research-Group/Ebi/releases/download/v0.3.28/Ebi.jar"
+  "source_release_url": "https://github.com/BPM-Research-Group/Ebi/releases/tag/v0.3.29",
+  "source_jar_url": "https://github.com/BPM-Research-Group/Ebi/releases/download/v0.3.29/Ebi.jar"
 }
