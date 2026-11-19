@@ -13,7 +13,7 @@ import org.junit.Test;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.image.ImagePortObject;
 import org.knime.core.node.port.image.ImagePortObjectSpec;
-import org.knime.base.data.xml.SvgCell;
+import org.knime.core.data.image.ImageValue;
 import org.pm4knime.portobject.BpmnPortObject;
 import org.pm4knime.portobject.DfgMsdPortObject;
 import org.pm4knime.portobject.PetriNetPortObject;
@@ -177,8 +177,12 @@ public class Pm4AdaptersTest {
         assertTrue(result instanceof ImagePortObject);
         assertEquals("ImagePortObject", EbiPortAdapters.typeName(result));
         assertTrue(result.getSpec() instanceof ImagePortObjectSpec);
-        assertEquals(SvgCell.TYPE, ((ImagePortObjectSpec)result.getSpec()).getDataType());
-        assertTrue(((ImagePortObject)result).toDataCell() instanceof SvgCell);
+        assertEquals(((ImagePortObjectSpec)EbiPortAdapters.outputSpec(
+            "ImagePortObject", ".svg", "Ebi visualise graph", "svg")).getDataType(),
+            ((ImagePortObjectSpec)result.getSpec()).getDataType());
+        var cell = ((ImagePortObject)result).toDataCell();
+        assertTrue(cell instanceof ImageValue);
+        assertTrue(((ImageValue)cell).getImageExtension().toLowerCase(java.util.Locale.ROOT).endsWith("svg"));
         try {
             EbiPortAdapters.deserialize("ImagePortObject", ".svg", "<ptml/>");
             fail("Accepted a non-SVG image.");

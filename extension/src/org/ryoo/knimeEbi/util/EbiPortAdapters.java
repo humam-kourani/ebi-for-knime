@@ -6,8 +6,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.knime.base.data.xml.SvgCell;
-import org.knime.base.data.xml.SvgImageContent;
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
@@ -75,7 +73,7 @@ public final class EbiPortAdapters {
             case "ProcessTreePortObject" -> new ProcessTreePortObjectSpec();
             case "DfgMsdPortObject" -> new DfgMsdPortObjectSpec();
             case "BpmnPortObject" -> new BpmnPortObjectSpec();
-            case "ImagePortObject" -> new ImagePortObjectSpec(SvgCell.TYPE);
+            case "ImagePortObject" -> EbiSvgImage.spec();
             case "EbiDocumentPortObject" -> new EbiDocumentPortObjectSpec(format);
             case "BufferedDataTable" -> TableUtil.createOutputSpec(command, label, StringCell.TYPE);
             default -> throw new IllegalArgumentException("Unsupported Ebi output: " + portType);
@@ -159,7 +157,7 @@ public final class EbiPortAdapters {
             case "ImagePortObject" -> {
                 if (!".svg".equals(format)) throw new IllegalArgumentException("KNIME image output requires an SVG exporter.");
                 String svg = XmlText.utf8(text, "svg");
-                yield new ImagePortObject(new SvgImageContent(utf8(svg)), new ImagePortObjectSpec(SvgCell.TYPE));
+                yield EbiSvgImage.fromText(svg);
             }
             case "EbiDocumentPortObject" -> new EbiDocumentPortObject(format, EbiNativeOutputCompatibility.normalize(format, text));
             case "BpmnPortObject" -> new BpmnPortObject(XmlText.utf8(text, "definitions"));
